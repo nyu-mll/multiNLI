@@ -69,7 +69,7 @@ class CBOWClassifier:
 		self.h_3 = tf.nn.relu(tf.add(tf.matmul(h_2, self.W_2), self.b_2))
 
 		# Get prediction
-		self.logits = tf.matmul(self.h_3, self.W_cl)
+		self.logits = tf.matmul(self.h_3, self.W_cl) + self.b_cl
 
 		# Define the cost function
 		self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, self.y))
