@@ -159,7 +159,7 @@ class CBOWClassifier:
 
         ### END BILISTM ###
 
-        ### BEGIN ATTENTION: in progress      
+        ### BEGIN ATTENTION  ### 
 		score_k_list = []
 		score_j_list = []
 
@@ -177,14 +177,12 @@ class CBOWClassifier:
 		alpha_j = tf.nn.softmax(score_j_all, dim=1)          
 		premise_attn_k = tf.reduce_sum(tf.mul(alpha_k, premise_steps_bi), 1)
 		hypothesis_attn_j = tf.reduce_sum(tf.mul(alpha_j, hypothesis_steps_bi), 1)
-
-		return premise_attn_k, hypothesis_attn_k
         
         #self.complete_attn_weights = tf.pack(alpha_kj_list, 2)
 
-        ##### ATTENTION END
+        ### END ATTENTION ###
 
-
+        
 		# Get prediction
 		self.logits = tf.matmul(self.h, self.W_cl) + self.b_cl
 
