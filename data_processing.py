@@ -1,12 +1,10 @@
 
 import numpy as np
-
 import re
 import random
 import json
 import collections
 import numpy as np
-
 
 import parameters
 
@@ -87,24 +85,7 @@ def sentences_to_padded_index_sequences(datasets):
 Load GloVe embeddings
 '''
 
-'''def loadEmebdding(path):
-    with open(path) as f:
-        loaded_embeddings = np.zeros((len(word_indices), FIXED_PARAMETERS["word_embedding_dim"]), dtype='float32')
-        for i, line in enumerate(f):
-            if i >= FIXED_PARAMETERS["embeddings_to_load"]: 
-                break
-            
-            s = line.split()
-            if s[0] in word_indices:
-                loaded_embeddings[word_indices[s[0]], :] = np.asarray(s[1:])
-
-    return loaded_embeddings'''
-
 def loadEmebdding(path, word_indices):
-    """Prepopulates a numpy embedding matrix indexed by vocabulary with
-    values from a GloVe - format ASCII vector file.
-
-    For now, values not found in the file will be set to zero."""
     emb = np.zeros((len(word_indices), FIXED_PARAMETERS["word_embedding_dim"]), dtype='float32')
     with open(path, 'r') as f:
         for i, line in enumerate(f):
