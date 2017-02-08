@@ -52,10 +52,10 @@ class CBOWClassifier:
 		self.learning_rate = 0.03
 		self.training_epochs = 100
 		self.display_epoch_freq = 1
-		self.embedding_dim = 50 #make into flag?
-		self.dim = 24 # make into flag?
+		self.embedding_dim = FIXED_PARAMETERS["word_embedding_dim"]
+		self.dim = FIXED_PARAMETERS["hidden_embedding_dim"]
 		self.batch_size = FIXED_PARAMETERS["batch_size"]
-		self.keep_rate = 0.5
+		#self.keep_rate = 0.5
 		self.sequence_length = FIXED_PARAMETERS["seq_length"]
 
 		## Define placeholders
@@ -67,7 +67,7 @@ class CBOWClassifier:
 		## Define remaning parameters 
 		self.E = tf.Variable(loaded_embeddings, trainable=False)
 
-		self.W_0 = tf.Variable(tf.random_normal([self.embedding_dim + self.embedding_dim, self.dim], stddev=0.1))
+		self.W_0 = tf.Variable(tf.random_normal([self.embedding_dim * 4, self.dim], stddev=0.1))
 		self.b_0 = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
 
 		self.W_1 = tf.Variable(tf.random_normal([self.dim, self.dim], stddev=0.1))
@@ -85,13 +85,16 @@ class CBOWClassifier:
 		emb_hypothesis = tf.nn.embedding_lookup(self.E, self.hypothesis_x)
 			# expected shape: [None, sequence_length, embedding_size]
 
-		self.premise_rep = tf.reduce_sum(emb_premise, 1)
-		self.hypothesis_rep = tf.reduce_sum(emb_hypothesis, 1)
+		premise_rep = tf.reduce_sum(emb_premise, 1)
+		hypothesis_rep = tf.reduce_sum(emb_hypothesis, 1)
 			# expected shape: [None, embedding_size]
 
+		## Combinations
+		h_diff = tf.sub(premise_rep, hypothesis_rep)
+		h_mul = tf.mul(premise_rep, hypothesis_rep) 
 
 		### MLP HERE (without dropout)
-		mlp_input = tf.concat(1, [self.premise_rep, self.hypothesis_rep])
+		mlp_input = tf.concat(1, [premise_rep, hypothesis_rep, h_diff, h_mul])
 		h_1 = tf.nn.relu(tf.add(tf.matmul(mlp_input, self.W_0), self.b_0))
 		h_2 = tf.nn.relu(tf.add(tf.matmul(h_1, self.W_1), self.b_1))
 		self.h_3 = tf.nn.relu(tf.add(tf.matmul(h_2, self.W_2), self.b_2))
