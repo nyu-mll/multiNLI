@@ -46,92 +46,147 @@ class CBOWClassifier:
         for name in ['f', 'b']:
             in_dim = self.embedding_dim
             
-            self.W_rnn[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
-            self.b_rnn[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
+            self.W_f[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
+            self.b_f[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
 
-            self.W_r[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
-            self.b_r[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
+            self.W_i[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
+            self.b_i[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
 
-            self.W_z[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
-            self.b_z[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
+            self.W_o[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
+            self.b_o[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
         
             
-        self.W_rnn['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
-        self.b_rnn['a'] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-
-        self.W_r['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
-        self.b_r['a'] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-
-        self.W_z['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
-        self.b_z['a'] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-            
-        self.W_a_attn = tf.Variable(tf.random_normal([self.dim + self.dim, self.dim], stddev=0.1))
+        '''self.W_rnn['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
+                                self.b_rnn['a'] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
+                        
+                                self.W_r['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
+                                self.b_r['a'] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
+                        
+                                self.W_c['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
+                                self.b_c['a'] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
+                                    
+                                self.W_a_attn = tf.Variable(tf.random_normal([self.dim + self.dim, self.dim], stddev=0.1))'''
         
         self.W_cl = tf.Variable(tf.random_normal([self.dim, 3], stddev=0.1))
         self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1))
         
         
         
-        # Define the GRU function
-        def gru(emb, h_prev, name):
+        # Define the LSTM function
+        def lstm(emb, h_prev, c_prev, name):
             emb_h_prev = tf.concat(1, [emb, h_prev], name=name + '_emb_h_prev')
-            z = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_z[name])  + self.b_z[name], name=name + '_z')
-            r = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_r[name])  + self.b_r[name], name=name + '_r')
-            emb_r_h_prev = tf.concat(1, [emb, r * h_prev], name=name + '_emb_r_h_prev')
-            h_tilde = tf.nn.tanh(tf.matmul(emb_r_h_prev, self.W_rnn[name])  + self.b_rnn[name], name=name + '_h_tilde')
-            h = (1. - z) * h_prev + z * h_tilde
-            return h
+            f_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_f[name])  + self.b_f[name])
+            i_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_i[name])  + self.b_i[name])
+            c_tilde = tf.nn.tanh(tf.matmul(emb_h_prev, self.W_c[name])  + self.b_c[name])
+            c = f_t * c_prev + i_t * c_tilde
+            o_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_o[name])  + self.b_o[name])
+            h = o_t * tf.nn.tanh(c)
+            return h, c
         
         # Define one step of the premise encoder RNN
-        def forward_step(x, h_prev):
+        def forward_step(x, h_prev, c_prev):
             emb = tf.nn.embedding_lookup(self.E, x)
-            return gru(emb, h_prev, 'f')
+            return lstm(emb, h_prev, c_prev, 'f')
         
         # Define one step of the hypothesis encoder RNN
-        def backward_step(x, h_prev):
+        def backward_step(x, h_prev, c_prev):
             emb = tf.nn.embedding_lookup(self.E, x)
-            return gru(emb, h_prev, 'b')
+            return lstm(emb, h_prev, c_prev, 'b')
 
         # Split up the inputs into individual tensors
         self.x_premise_slices = tf.split(1, self.sequence_length, self.premise_x)
         self.x_hypothesis_slices = tf.split(1, self.sequence_length, self.hypothesis_x)
         
-        self.h_zero_premise = tf.zeros(tf.pack([tf.shape(self.premise_x)[0], self.dim]))
-        self.h_zero_hypothesis = tf.zeros(tf.pack([tf.shape(self.hypothesis_x)[0], self.dim]))
+        self.h_zero = tf.zeros(tf.pack([tf.shape(self.premise_x)[0], self.dim]))
         
-        # Unroll the first RNN
-        premise_h_prev = self.h_zero_premise
-        premise_steps_list = []
+        #premise_h_prev_f = self.h_zero
+        #premise_steps_list_f = []
+        #hypothesis_h_prev = self.h_zero_hypothesis
+        #hypothesis_steps_list = []
 
+        premise_h_prev = {}
+        premise_steps_list = {}
+        hypothesis_h_prev = {}
+        hypothesis_steps_list = {}
+        premise_steps = {}
+        hypothesis_steps = {}
+
+        for name in ['f', 'b']:
+        	premise_h_prev[name] = self.h_zero
+        	premise_steps_list[name] = []
+        	hypothesis_h_prev[name] = self.h_zero
+        	hypothesis_steps_list[name] = []
+
+        # Unroll FORWARD pass of both LSTMs for both sentences
         for t in range(self.sequence_length):
-            x_t = tf.reshape(self.x_premise_slices[t], [-1])
-            premise_h_prev = premise_step(x_t, premise_h_prev)
-            premise_steps_list.append(premise_h_prev)
+            a_t = tf.reshape(self.x_premise_slices[t], [-1])
+            premise_h_prev['f'] = forward_step(a_t, premise_h_prev['f'])
+            premise_steps_list['f'].append(premise_h_prev['f'])
+
+            b_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
+            hypothesis_h_prev['f'] = hypothesis_step(b_t, hypothesis_h['f'])
+            hypothesis_steps_list['f'].append(hypothesis_h_prev['f'])
             
-        premise_steps = tf.pack(premise_steps_list, axis=1, name='premise_steps')
-                
-        hypothesis_h_prev = self.h_zero_hypothesis
-        hypothesis_steps_list = []
+        premise_steps['f'] = tf.pack(premise_steps_list['f'], axis=1)
+        hypothesis_steps['f'] = tf.pack(premise_steps_list['f'], axis=1)
         
-        for t in range(self.sequence_length):
-            x_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
-            hypothesis_h_prev = hypothesis_step(x_t, hypothesis_h_prev)
-            hypothesis_steps_list.append(hypothesis_h_prev)
+        '''# Unroll forward pass of premise LSTM
+                                for t in range(self.sequence_length):
+                                    x_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
+                                    hypothesis_h_prev['f'] = hypothesis_step(x_t, hypothesis_h['f'])
+                                    hypothesis_steps_list['f'].append(hypothesis_h_prev['f'])
+                                    
+                                hypothesis_steps['f'] = tf.pack(premise_steps_list['f'], axis=1, name='hypothesis_steps')'''
+
+        # Unroll BACKWARD pass of both LSTMs for both sentences
+        for t in range(self.sequence_length, -1, -1):
+            a_t = tf.reshape(self.x_premise_slices[t], [-1])
+            premise_h_prev['b'] = forward_step(a_t, premise_h_prev['b'])
+            premise_steps_list['b'].append(premise_h_prev['b'])
+
+            b_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
+            hypothesis_h_prev['b'] = hypothesis_step(b_t, hypothesis_h['b'])
+            hypothesis_steps_list['b'].append(hypothesis_h_prev['b'])
             
-        hypothesis_steps = tf.pack(premise_steps_list, axis=1, name='hypothesis_steps')
+        premise_steps['b'] = tf.pack(premise_steps_list['b'], axis=1)    
+        hypothesis_steps['b'] = tf.pack(premise_steps_list['b'], axis=1)
 
-		## Combinations
-		h_diff = tf.sub(premise_rep, hypothesis_rep)
-		h_mul = tf.mul(premise_rep, hypothesis_rep) 
+        premise_list_bi = tf.concat(1, [premise_steps_list['f'], premise_steps_list['b']])
+        hypothesis_list_bi = tf.concat(1, [hypothesis_steps_list['f'], hypothesis_steps_list['b']])
 
-		### MLP HERE (without dropout)
-		mlp_input = tf.concat(1, [premise_rep, hypothesis_rep, h_diff, h_mul])
-		h_1 = tf.nn.relu(tf.add(tf.matmul(mlp_input, self.W_0), self.b_0))
-		h_2 = tf.nn.relu(tf.add(tf.matmul(h_1, self.W_1), self.b_1))
-		self.h_3 = tf.nn.relu(tf.add(tf.matmul(h_2, self.W_2), self.b_2))
+        premise_steps_bi = tf.concat(1, [premise_steps['f'], premise_steps['b']])
+        hypothesis_steps_bi = tf.concat(1, [hypothesis_steps['f'], hypothesis_steps['b']])
+
+        ### END BILISTM ###
+
+        ### BEGIN ATTENTION: in progress      
+		score_k_list = []
+		score_j_list = []
+
+		for j in range(len(premise_list_bi)):
+		    score_k = tf.reduce_sum(tf.mul(premise_list_bi[s], concat_prev), 1, keep_dims=True)
+		    score_k_list.append(score_kj)
+
+		for k in range(len(hypothesis_list_bi)):
+		    score_j = tf.reduce_sum(tf.mul(premise_list_bi[s], concat_prev), 1, keep_dims=True)
+		    score_j_list.append(score_kj)
+
+		score_k_all = tf.pack(score_k_list, axis=1)
+		score_j_all = tf.pack(score_j_list, axis=1)
+		alpha_k = tf.nn.softmax(score_k_all, dim=1)
+		alpha_j = tf.nn.softmax(score_j_all, dim=1)          
+		premise_attn_k = tf.reduce_sum(tf.mul(alpha_k, premise_steps_bi), 1)
+		hypothesis_attn_j = tf.reduce_sum(tf.mul(alpha_j, hypothesis_steps_bi), 1)
+
+		return premise_attn_k, hypothesis_attn_k
+        
+        #self.complete_attn_weights = tf.pack(alpha_kj_list, 2)
+
+        ##### ATTENTION END
+
 
 		# Get prediction
-		self.logits = tf.matmul(self.h_3, self.W_cl)
+		self.logits = tf.matmul(self.h, self.W_cl) + self.b_cl
 
 		# Define the cost function
 		self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, self.y))
