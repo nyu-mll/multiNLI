@@ -1,6 +1,6 @@
 import tensorflow as tf
+import numpy as np
 import parameters
-from process import sentences_to_padded_index_sequences
 from data_processing import *
 from evaluate import evaluate_classifier 
 
@@ -15,7 +15,7 @@ indices_to_words, word_indices = sentences_to_padded_index_sequences([training_s
 loaded_embeddings = loadEmebdding(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
 
-class CBOWClassifier:
+class EBIMClassifier:
     def __init__(self, vocab_size, seq_length):
         ## Define hyperparameters
         self.learning_rate = 0.03
@@ -35,12 +35,14 @@ class CBOWClassifier:
         # Define parameters
         self.E = tf.Variable(loaded_embeddings, trainable=False)
 
-        self.W_rnn = {}
-        self.W_r = {}
-        self.W_z = {}
-        self.b_rnn = {}
-        self.b_r = {}
-        self.b_z = {}
+        self.W_f = {}
+        self.W_i = {}
+        self.W_o = {}
+        self.b_f = {}
+        self.b_i = {}
+        self.b_o = {}
+        self.W_c = {}
+        self.b_c = {}
             
         for name in ['f', 'b']:
             in_dim = self.embedding_dim
@@ -53,6 +55,9 @@ class CBOWClassifier:
 
             self.W_o[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
             self.b_o[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
+
+            self.W_c[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
+            self.b_c[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
         
             
         '''self.W_rnn['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
@@ -109,10 +114,12 @@ class CBOWClassifier:
         premise_h_prev = {}
         premise_c_prev = {}
         premise_steps_list = {}
+        premise_steps = {}
         
         hypothesis_h_prev = {}
         hypothesis_c_prev = {}
         hypothesis_steps_list = {}
+        hypothesis_steps = {}
 
         for name in ['f', 'b']:
             premise_h_prev[name] = self.h_zero
@@ -129,7 +136,7 @@ class CBOWClassifier:
             premise_steps_list['f'].append(premise_h_prev['f'])
 
             b_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
-            hypothesis_h_prev['f'], hypothesis_c_prev['f'] = lstm_step(b_t, hypothesis_h['f'], hypothesis_c_prev['f'])
+            hypothesis_h_prev['f'], hypothesis_c_prev['f'] = lstm_step(b_t, hypothesis_h_prev['f'], hypothesis_c_prev['f'])
             hypothesis_steps_list['f'].append(hypothesis_h_prev['f'])
             
         premise_steps['f'] = tf.pack(premise_steps_list['f'], axis=1)
@@ -144,36 +151,40 @@ class CBOWClassifier:
                                 hypothesis_steps['f'] = tf.pack(premise_steps_list['f'], axis=1, name='hypothesis_steps')'''
 
         # Unroll BACKWARD pass of LSTMs for both sentences
-        for t in range(self.sequence_length, -1, -1):
+        for t in range(self.sequence_length-1 , -1, -1):
             a_t = tf.reshape(self.x_premise_slices[t], [-1])
             premise_h_prev['b'], premise_c_prev['b'] = lstm_step(a_t, premise_h_prev['b'], premise_c_prev['b'])
             premise_steps_list['b'].append(premise_h_prev['b'])
 
             b_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
-            hypothesis_h_prev['b'], hypothesis_c_prev['b']  = lstm_step(b_t, hypothesis_h['b'], hypothesis_c_prev['b'])
+            hypothesis_h_prev['b'], hypothesis_c_prev['b']  = lstm_step(b_t, hypothesis_h_prev['b'], hypothesis_c_prev['b'])
             hypothesis_steps_list['b'].append(hypothesis_h_prev['b'])
-            
-        premise_steps['b'] = tf.pack(premise_steps_list['b'], axis=1)    
-        hypothesis_steps['b'] = tf.pack(hypothesis_steps_list['b'], axis=1)
+        
+        premise_list_bi = []
+        hypothesis_list_bi = []
 
-        premise_list_bi = tf.concat(1, [premise_steps_list['f'], premise_steps_list['b']])
-        hypothesis_list_bi = tf.concat(1, [hypothesis_steps_list['f'], hypothesis_steps_list['b']])
+        for t in range(self.sequence_length):
+            premise_bi_step = tf.concat(0, [premise_steps_list['f'][t], premise_steps_list['b'][t]])
+            premise_list_bi.append(premise_bi_step)
+            hypothesis_bi_step = tf.concat(0, [hypothesis_steps_list['f'][t], hypothesis_steps_list['b'][t]])
+            hypothesis_list_bi.append(hypothesis_bi_step) 
 
-        premise_steps_bi = tf.concat(1, [premise_steps['f'], premise_steps['b']])
-        hypothesis_steps_bi = tf.concat(1, [hypothesis_steps['f'], hypothesis_steps['b']])
+        premise_steps_bi = tf.pack(premise_list_bi, axis=1)
+        hypothesis_steps_bi = tf.pack(hypothesis_list_bi, axis=1)
 
         ### Attention ###
 
         score_k_list = []
         score_j_list = []
 
+        ### FIX ME reduce_sum needs to be one concat step with another concat step (not a list like right now)
         for j in range(len(premise_list_bi)):
-            score_k = tf.reduce_sum(tf.mul(premise_list_bi[j], hypothesis_list_bi), 1, keep_dims=True)
-            score_k_list.append(score_kj)
+            score_j = tf.reduce_sum(tf.mul(premise_list_bi[j], hypothesis_steps_bi), 1, keep_dims=True)
+            score_j_list.append(score_j)
 
         for k in range(len(hypothesis_list_bi)):
-            score_j = tf.reduce_sum(tf.mul(premise_list_bi[k], hypothesis_list_bi), 1, keep_dims=True)
-            score_j_list.append(score_kj)
+            score_k = tf.reduce_sum(tf.mul(premise_list_bi[k], hypothesis_steps_bi), 1, keep_dims=True)
+            score_k_list.append(score_k)
 
         # write above a nested for loops? -- (for j in seq: (for k in seq: (score= , score_matrix_jk= )))
 
@@ -202,10 +213,16 @@ class CBOWClassifier:
             m_b.append(m_b_i)
 
         ### Inference Composition ###
-        self.h_m_zero = tf.zeros(tf.pack([tf.shape(self.m_a)[0], self.dim])) ## ?? Not sure this is right dimension
+        self.h_m_zero = tf.zeros(tf.pack([tf.shape(m_a)[0], self.dim])) ## ?? Not sure this is right dimension
 
         v1_steps_list = {}
+        v1_h_prev = {}
+        v1_c_prev = {}
+        v1_steps = {}
         v2_steps_list = {}
+        v2_h_prev = {}
+        v2_c_prev = {}
+        v2_steps = {}
 
         for name in ['f', 'b']:
             v1_steps_list[name] = []
@@ -217,21 +234,21 @@ class CBOWClassifier:
 
         # Unroll FORWARD pass of LSTMs for both composition layers
         for t in range(self.sequence_length):
-            v1_h_prev['f'], v1_c_prev['f'] = lstm_step(m_a[t], v1_h_prev['f'], v1_c_prev['f'])
+            v1_h_prev['f'], v1_c_prev['f'] = lstm(m_a[t], v1_h_prev['f'], v1_c_prev['f'])
             v1_steps_list['f'].append(v1_h_prev['f'])
 
-            v2_h_prev['f'], v2_c_prev['f'] = lstm_step(m_b[t], v2_h_prev['f'], v2_c_prev['f'])
+            v2_h_prev['f'], v2_c_prev['f'] = lstm(m_b[t], v2_h_prev['f'], v2_c_prev['f'])
             v2_steps_list['f'].append(v2_steps_list['f'])
 
         v1_steps['f'] = tf.pack(v1_steps_list['f'], axis=1)    
         v2_steps['f'] = tf.pack(v2_steps_list['f'], axis=1)
 
         # Unroll BACKWARD pass of LSTMs for both composition layers
-        for t in range(self.sequence_length, -1, -1):
-            v1_h_prev['b'], v1_c_prev['b'] = lstm_step(m_a[t], v1_h_prev['b'], v1_c_prev['b'])
+        for t in range(self.sequence_length-1, -1, -1):
+            v1_h_prev['b'], v1_c_prev['b'] = lstm(m_a[t], v1_h_prev['b'], v1_c_prev['b'])
             v1_steps_list['b'].append(v1_h_prev['b'])
 
-            v2_h_prev['b'], v2_c_prev['b'] = lstm_step(m_b[t], v2_h_prev['b'], v2_c_prev['b'])
+            v2_h_prev['b'], v2_c_prev['b'] = lstm(m_b[t], v2_h_prev['b'], v2_c_prev['b'])
             v2_steps_list['b'].append(v2_steps_list['b'])
 
         v1_steps['b'] = tf.pack(v1_steps_list['b'], axis=1) #?need?
@@ -243,6 +260,7 @@ class CBOWClassifier:
         v1_steps_bi = tf.concat(1, [v1_steps['f'], v1_steps['b']]) #?need?
         v2_steps_bi = tf.concat(1, [v2_steps['f'], v2_steps['b']]) #?need?
 
+        # Convert to fixed lenght vector
 
 
         # Get prediction
@@ -309,7 +327,7 @@ class CBOWClassifier:
         return np.argmax(logits, axis=1)
 
 
-classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
+classifier = EBIMClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
 classifier.train(training_set, dev_set)
 
 evaluate_classifier(classifier.classify, dev_set)
