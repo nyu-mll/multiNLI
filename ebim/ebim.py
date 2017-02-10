@@ -69,11 +69,10 @@ class CBOWClassifier:
         
         self.W_cl = tf.Variable(tf.random_normal([self.dim, 3], stddev=0.1))
         self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1))
-        
-        
+                
         
         # Define the LSTM function
-        def lstm(emb, h_prev, c_prev, name):
+        def lstm(emb, h_prev, c_prev): #removed name entry from function
             emb_h_prev = tf.concat(1, [emb, h_prev], name=name + '_emb_h_prev')
             f_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_f[name])  + self.b_f[name])
             i_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_i[name])  + self.b_i[name])
@@ -83,15 +82,19 @@ class CBOWClassifier:
             h = o_t * tf.nn.tanh(c)
             return h, c
         
-        # Define one step of the premise encoder RNN
-        def forward_step(x, h_prev, c_prev):
+        '''# Define one step of the premise encoder RNN
+                                def forward_step(x, h_prev, c_prev):
+                                    emb = tf.nn.embedding_lookup(self.E, x)
+                                    return lstm(emb, h_prev, c_prev, 'f')
+                                
+                                # Define one step of the hypothesis encoder RNN
+                                def backward_step(x, h_prev, c_prev):
+                                    emb = tf.nn.embedding_lookup(self.E, x)
+                                    return lstm(emb, h_prev, c_prev, 'b')'''
+
+        def lstm_step(x, h_prev, c_prev):
             emb = tf.nn.embedding_lookup(self.E, x)
-            return lstm(emb, h_prev, c_prev, 'f')
-        
-        # Define one step of the hypothesis encoder RNN
-        def backward_step(x, h_prev, c_prev):
-            emb = tf.nn.embedding_lookup(self.E, x)
-            return lstm(emb, h_prev, c_prev, 'b')
+            return lstm(emb, h_prev, c_prev)
 
         # Split up the inputs into individual tensors
         self.x_premise_slices = tf.split(1, self.sequence_length, self.premise_x)
@@ -105,26 +108,31 @@ class CBOWClassifier:
         #hypothesis_steps_list = []
 
         premise_h_prev = {}
+        premise_c_prev = {}
         premise_steps_list = {}
-        hypothesis_h_prev = {}
-        hypothesis_steps_list = {}
         premise_steps = {}
+        
+        hypothesis_h_prev = {}
+        hypothesis_c_prev = {}
+        hypothesis_steps_list = {}
         hypothesis_steps = {}
 
         for name in ['f', 'b']:
         	premise_h_prev[name] = self.h_zero
-        	premise_steps_list[name] = []
+        	premise_c_prev[name] = self.h_zero
+        	premise_steps_list[name] = []        	
         	hypothesis_h_prev[name] = self.h_zero
+        	hypothesis_c_prev[name] = self.h_zero
         	hypothesis_steps_list[name] = []
 
-        # Unroll FORWARD pass of both LSTMs for both sentences
+        # Unroll FORWARD pass of LSTMs for both sentences
         for t in range(self.sequence_length):
             a_t = tf.reshape(self.x_premise_slices[t], [-1])
-            premise_h_prev['f'] = forward_step(a_t, premise_h_prev['f'])
+            premise_h_prev['f'], premise_c_prev['f'] = lstm_step(a_t, premise_h_prev['f'], premise_c_prev['f'])
             premise_steps_list['f'].append(premise_h_prev['f'])
 
             b_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
-            hypothesis_h_prev['f'] = hypothesis_step(b_t, hypothesis_h['f'])
+            hypothesis_h_prev['f'], hypothesis_c_prev['f'] = lstm_step(b_t, hypothesis_h['f'], hypothesis_c_prev['f'])
             hypothesis_steps_list['f'].append(hypothesis_h_prev['f'])
             
         premise_steps['f'] = tf.pack(premise_steps_list['f'], axis=1)
@@ -138,14 +146,14 @@ class CBOWClassifier:
                                     
                                 hypothesis_steps['f'] = tf.pack(premise_steps_list['f'], axis=1, name='hypothesis_steps')'''
 
-        # Unroll BACKWARD pass of both LSTMs for both sentences
+        # Unroll BACKWARD pass of LSTMs for both sentences
         for t in range(self.sequence_length, -1, -1):
             a_t = tf.reshape(self.x_premise_slices[t], [-1])
-            premise_h_prev['b'] = forward_step(a_t, premise_h_prev['b'])
+            premise_h_prev['b'], premise_c_prev['b'] = lstm_step(a_t, premise_h_prev['b'], premise_c_prev['b'])
             premise_steps_list['b'].append(premise_h_prev['b'])
 
             b_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
-            hypothesis_h_prev['b'] = hypothesis_step(b_t, hypothesis_h['b'])
+            hypothesis_h_prev['b'], hypothesis_c_prev['b']  = lstm_step(b_t, hypothesis_h['b'], hypothesis_c_prev['b'])
             hypothesis_steps_list['b'].append(hypothesis_h_prev['b'])
             
         premise_steps['b'] = tf.pack(premise_steps_list['b'], axis=1)    
@@ -164,12 +172,14 @@ class CBOWClassifier:
 		score_j_list = []
 
 		for j in range(len(premise_list_bi)):
-		    score_k = tf.reduce_sum(tf.mul(premise_list_bi[s], concat_prev), 1, keep_dims=True)
+		    score_k = tf.reduce_sum(tf.mul(premise_list_bi[j], hypothesis_list_bi), 1, keep_dims=True)
 		    score_k_list.append(score_kj)
 
 		for k in range(len(hypothesis_list_bi)):
-		    score_j = tf.reduce_sum(tf.mul(premise_list_bi[s], concat_prev), 1, keep_dims=True)
+		    score_j = tf.reduce_sum(tf.mul(premise_list_bi[k], hypothesis_list_bi), 1, keep_dims=True)
 		    score_j_list.append(score_kj)
+
+		# write above a nested for loops? -- (for j in seq: (for k in seq: (score= , score_matrix_jk= )))
 
 		score_k_all = tf.pack(score_k_list, axis=1)
 		score_j_all = tf.pack(score_j_list, axis=1)
@@ -182,7 +192,51 @@ class CBOWClassifier:
 
         ### END ATTENTION ###
 
+        ### Subcomponent Inference ###
+
+        m_a = []
+        m_b = []
         
+        for i in range(seq_length):
+        	m_a_diff = premise_attn_k - premise_steps_bi
+        	m_a_mul = premise_attn_k * premise_steps_bi
+        	m_b_diff = hypothesis_attn_j - hypothesis_steps_bi
+        	m_b_mul = hypothesis_attn_j * hypothesis_steps_bi
+        	m_a_i = tf.concat(1, [premise_steps_bi, premise_attn_k, m_a_diff, m_a_mul])
+        	m_b_i = tf.concat(1, [hypothesis_steps_bi, hypothesis_attn_j, m_b_diff, m_b_mul])
+        	m_a.append(m_a_i)
+        	m_b.append(m_b_i)
+
+       	### Inference Composition ###
+       	self.h_m_zero = tf.zeros(tf.pack([tf.shape(self.m_a)[0], self.dim])) ## ?? Not sure this is right dimension
+
+       	v1_steps_list = {}
+       	v2_steps_list = {}
+
+       	for name in ['f', 'b']:
+       		v1_steps_list[name] = []
+       		v1_h_prev[name] = self.h_m_zero
+       		v1_c_prev[name] = self.h_m_zero
+       		v2_steps_list[name] = []
+       		v2_h_prev[name] = self.h_m_zero
+       		v2_c_prev[name] = self.h_m_zero
+
+       	# Unroll FORWARD pass of LSTMs for both composition layers
+        for t in range(self.sequence_length):
+            v1_h_prev['f'], v1_c_prev['f'] = lstm_step(m_a[t], v1_h_prev['f'], v1_c_prev['f'])
+            v1_steps_list['f'].append(v1_h_prev['f'])
+
+            v2_h_prev['f'], v2_c_prev['f'] = lstm_step(m_b[t], v2_h_prev['f'], v2_c_prev['f'])
+            v2_steps_list['f'].append(v2_steps_list['f'])
+
+        # Unroll BACKWARD pass of LSTMs for both composition layers
+        for t in range(self.sequence_length, -1, -1):
+            v1_h_prev['b'], v1_c_prev['b'] = lstm_step(m_a[t], v1_h_prev['b'], v1_c_prev['b'])
+            v1_steps_list['b'].append(v1_h_prev['b'])
+
+            v2_h_prev['b'], v2_c_prev['b'] = lstm_step(m_b[t], v2_h_prev['b'], v2_c_prev['b'])
+            v2_steps_list['b'].append(v2_steps_list['b'])
+
 		# Get prediction
 		self.logits = tf.matmul(self.h, self.W_cl) + self.b_cl
 
