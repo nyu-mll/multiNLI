@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 import parameters
 from data_processing import *
 from evaluate import evaluate_classifier 
@@ -44,8 +43,11 @@ class EBIMClassifier:
         self.W_c = {}
         self.b_c = {}
             
-        for name in ['f', 'b']:
-            in_dim = self.embedding_dim
+        for name in ['f', 'b', 'f2', 'b2']:
+            if name in ['f', 'b']:
+                in_dim = self.embedding_dim
+            else:
+                in_dim = self.dim * 8
             
             self.W_f[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
             self.b_f[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
@@ -58,25 +60,14 @@ class EBIMClassifier:
 
             self.W_c[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
             self.b_c[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-        
-            
-        '''self.W_rnn['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
-                                self.b_rnn['a'] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-                        
-                                self.W_r['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
-                                self.b_r['a'] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-                        
-                                self.W_c['a'] = tf.Variable(tf.random_normal([self.dim + self.dim + self.dim, self.dim], stddev=0.1))
-                                self.b_c['a'] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-                                    
-                                self.W_a_attn = tf.Variable(tf.random_normal([self.dim + self.dim, self.dim], stddev=0.1))'''
+
         
         self.W_cl = tf.Variable(tf.random_normal([self.dim, 3], stddev=0.1))
         self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1))
                 
         
         # Define the LSTM function
-        def lstm(emb, h_prev, c_prev): #removed name entry from function
+        def lstm(emb, h_prev, c_prev, name): #removed name entry from function
             emb_h_prev = tf.concat(1, [emb, h_prev], name=name + '_emb_h_prev')
             f_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_f[name])  + self.b_f[name])
             i_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_i[name])  + self.b_i[name])
@@ -85,31 +76,16 @@ class EBIMClassifier:
             o_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_o[name])  + self.b_o[name])
             h = o_t * tf.nn.tanh(c)
             return h, c
-        
-        '''# Define one step of the premise encoder RNN
-                                def forward_step(x, h_prev, c_prev):
-                                    emb = tf.nn.embedding_lookup(self.E, x)
-                                    return lstm(emb, h_prev, c_prev, 'f')
-                                
-                                # Define one step of the hypothesis encoder RNN
-                                def backward_step(x, h_prev, c_prev):
-                                    emb = tf.nn.embedding_lookup(self.E, x)
-                                    return lstm(emb, h_prev, c_prev, 'b')'''
 
-        def lstm_step(x, h_prev, c_prev):
+        def lstm_step(x, h_prev, c_prev, name):
             emb = tf.nn.embedding_lookup(self.E, x)
-            return lstm(emb, h_prev, c_prev)
+            return lstm(emb, h_prev, c_prev, name)
 
         # Split up the inputs into individual tensors
         self.x_premise_slices = tf.split(1, self.sequence_length, self.premise_x)
         self.x_hypothesis_slices = tf.split(1, self.sequence_length, self.hypothesis_x)
         
         self.h_zero = tf.zeros(tf.pack([tf.shape(self.premise_x)[0], self.dim]))
-        
-        #premise_h_prev_f = self.h_zero
-        #premise_steps_list_f = []
-        #hypothesis_h_prev = self.h_zero_hypothesis
-        #hypothesis_steps_list = []
 
         premise_h_prev = {}
         premise_c_prev = {}
@@ -132,68 +108,76 @@ class EBIMClassifier:
         # Unroll FORWARD pass of LSTMs for both sentences
         for t in range(self.sequence_length):
             a_t = tf.reshape(self.x_premise_slices[t], [-1])
-            premise_h_prev['f'], premise_c_prev['f'] = lstm_step(a_t, premise_h_prev['f'], premise_c_prev['f'])
+            premise_h_prev['f'], premise_c_prev['f'] = lstm_step(a_t, premise_h_prev['f'], premise_c_prev['f'], 'f')
             premise_steps_list['f'].append(premise_h_prev['f'])
 
             b_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
-            hypothesis_h_prev['f'], hypothesis_c_prev['f'] = lstm_step(b_t, hypothesis_h_prev['f'], hypothesis_c_prev['f'])
+            hypothesis_h_prev['f'], hypothesis_c_prev['f'] = lstm_step(b_t, hypothesis_h_prev['f'], hypothesis_c_prev['f'], 'f')
             hypothesis_steps_list['f'].append(hypothesis_h_prev['f'])
             
         premise_steps['f'] = tf.pack(premise_steps_list['f'], axis=1)
         hypothesis_steps['f'] = tf.pack(hypothesis_steps_list['f'], axis=1)
-        
-        '''# Unroll forward pass of premise LSTM
-                                for t in range(self.sequence_length):
-                                    x_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
-                                    hypothesis_h_prev['f'] = hypothesis_step(x_t, hypothesis_h['f'])
-                                    hypothesis_steps_list['f'].append(hypothesis_h_prev['f'])
-                                    
-                                hypothesis_steps['f'] = tf.pack(premise_steps_list['f'], axis=1, name='hypothesis_steps')'''
 
         # Unroll BACKWARD pass of LSTMs for both sentences
         for t in range(self.sequence_length-1 , -1, -1):
             a_t = tf.reshape(self.x_premise_slices[t], [-1])
-            premise_h_prev['b'], premise_c_prev['b'] = lstm_step(a_t, premise_h_prev['b'], premise_c_prev['b'])
+            premise_h_prev['b'], premise_c_prev['b'] = lstm_step(a_t, premise_h_prev['b'], premise_c_prev['b'], 'b')
             premise_steps_list['b'].append(premise_h_prev['b'])
 
             b_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
-            hypothesis_h_prev['b'], hypothesis_c_prev['b']  = lstm_step(b_t, hypothesis_h_prev['b'], hypothesis_c_prev['b'])
+            hypothesis_h_prev['b'], hypothesis_c_prev['b']  = lstm_step(b_t, hypothesis_h_prev['b'], hypothesis_c_prev['b'], 'b')
             hypothesis_steps_list['b'].append(hypothesis_h_prev['b'])
         
         premise_list_bi = []
         hypothesis_list_bi = []
 
         for t in range(self.sequence_length):
-            premise_bi_step = tf.concat(0, [premise_steps_list['f'][t], premise_steps_list['b'][t]])
+            premise_bi_step = tf.concat(1, [premise_steps_list['f'][t], premise_steps_list['b'][t]])
             premise_list_bi.append(premise_bi_step)
-            hypothesis_bi_step = tf.concat(0, [hypothesis_steps_list['f'][t], hypothesis_steps_list['b'][t]])
+            hypothesis_bi_step = tf.concat(1, [hypothesis_steps_list['f'][t], hypothesis_steps_list['b'][t]])
             hypothesis_list_bi.append(hypothesis_bi_step) 
+
+        print "PREMISE FORWARD LIST", premise_steps_list['f']
+        print "PREMISE LIST BI", premise_list_bi
 
         premise_steps_bi = tf.pack(premise_list_bi, axis=1)
         hypothesis_steps_bi = tf.pack(hypothesis_list_bi, axis=1)
 
+        print "PREMISE STEPS BI, PACKED", premise_steps_bi
         ### Attention ###
 
-        score_k_list = []
-        score_j_list = []
+        scores_all = []
+        premise_attn = []
+        for i in range(len(premise_list_bi)):
+            scores_i_list = []
+            for j in range(len(hypothesis_list_bi)):
+                #score_ij = tf.matmul(tf.transpose(premise_list_bi[i]), hypothesis_list_bi[j])
+                score_ij = tf.reduce_sum(tf.mul(premise_list_bi[i], hypothesis_list_bi[i]), 1, keep_dims=True)
+                scores_i_list.append(score_ij)
+            scores_i = tf.pack(scores_i_list, axis=1)
+            alpha_ij = tf.nn.softmax(scores_i, dim=1)
+            a_tilde_i = tf.reduce_sum(tf.mul(alpha_ij, premise_steps_bi), 1)
+            premise_attn.append(a_tilde_i)
+            
+            scores_all.append(scores_i)
 
-        ### FIX ME reduce_sum needs to be one concat step with another concat step (not a list like right now)
-        for j in range(len(premise_list_bi)):
-            score_j = tf.reduce_sum(tf.mul(premise_list_bi[j], hypothesis_steps_bi), 1, keep_dims=True)
-            score_j_list.append(score_j)
+        print "ONE ALPHA", alpha_ij
+        print "ONE A-TILDE", a_tilde_i 
+        print "test", tf.mul(alpha_ij, premise_steps_bi)
 
-        for k in range(len(hypothesis_list_bi)):
-            score_k = tf.reduce_sum(tf.mul(premise_list_bi[k], hypothesis_steps_bi), 1, keep_dims=True)
-            score_k_list.append(score_k)
+        hypothesis_attn = []
+        for j in range(len(hypothesis_list_bi)):
+            scores_j_list = []
+            for i in range(len(premise_list_bi)):
+                scores_j_list.append(scores_all[i][j])
+            scores_j = tf.pack(scores_j_list)
+            beta_ij = tf.nn.softmax(scores_j, dim=1)
+            b_tilde_j = tf.reduce_sum(tf.mul(beta_ij, hypothesis_steps_bi), 1)
+            hypothesis_attn.append(b_tilde_j)
 
-        # write above a nested for loops? -- (for j in seq: (for k in seq: (score= , score_matrix_jk= )))
 
-        score_k_all = tf.pack(score_k_list, axis=1)
-        score_j_all = tf.pack(score_j_list, axis=1)
-        alpha_k = tf.nn.softmax(score_k_all, dim=1)
-        alpha_j = tf.nn.softmax(score_j_all, dim=1)          
-        premise_attn_k = tf.reduce_sum(tf.mul(alpha_k, premise_steps_bi), 1)
-        hypothesis_attn_j = tf.reduce_sum(tf.mul(alpha_j, hypothesis_steps_bi), 1)
+        print "SCORES ALL", scores_all
+        print "PREM ATTN", premise_attn
         
         #self.complete_attn_weights = tf.pack(alpha_kj_list, 2)
 
@@ -202,66 +186,87 @@ class EBIMClassifier:
         m_a = []
         m_b = []
         
-        for i in range(seq_length):
-            m_a_diff = premise_attn_k - premise_steps_bi
-            m_a_mul = premise_attn_k * premise_steps_bi
-            m_b_diff = hypothesis_attn_j - hypothesis_steps_bi
-            m_b_mul = hypothesis_attn_j * hypothesis_steps_bi
-            m_a_i = tf.concat(1, [premise_steps_bi, premise_attn_k, m_a_diff, m_a_mul])
-            m_b_i = tf.concat(1, [hypothesis_steps_bi, hypothesis_attn_j, m_b_diff, m_b_mul])
+        for i in range(self.sequence_length):
+            m_a_diff = premise_attn[i] - premise_list_bi[i]
+            m_a_mul = premise_attn[i] * premise_list_bi[i]
+            m_b_diff = hypothesis_attn[i] - hypothesis_list_bi[i]
+            m_b_mul = hypothesis_attn[i] * hypothesis_list_bi[i]
+            m_a_i = tf.concat(1, [premise_list_bi[i], premise_attn[i], m_a_diff, m_a_mul])
+            m_b_i = tf.concat(1, [hypothesis_list_bi[i], hypothesis_attn[i], m_b_diff, m_b_mul])
             m_a.append(m_a_i)
             m_b.append(m_b_i)
 
+        print "M_A", m_a
+
         ### Inference Composition ###
-        self.h_m_zero = tf.zeros(tf.pack([tf.shape(m_a)[0], self.dim])) ## ?? Not sure this is right dimension
 
         v1_steps_list = {}
         v1_h_prev = {}
         v1_c_prev = {}
-        v1_steps = {}
+        #v1_steps = {}
         v2_steps_list = {}
         v2_h_prev = {}
         v2_c_prev = {}
-        v2_steps = {}
+        #v2_steps = {}
 
-        for name in ['f', 'b']:
+        for name in ['f2', 'b2']:
             v1_steps_list[name] = []
-            v1_h_prev[name] = self.h_m_zero
-            v1_c_prev[name] = self.h_m_zero
+            v1_h_prev[name] = self.h_zero
+            v1_c_prev[name] = self.h_zero
             v2_steps_list[name] = []
-            v2_h_prev[name] = self.h_m_zero
-            v2_c_prev[name] = self.h_m_zero
+            v2_h_prev[name] = self.h_zero
+            v2_c_prev[name] = self.h_zero
 
         # Unroll FORWARD pass of LSTMs for both composition layers
         for t in range(self.sequence_length):
-            v1_h_prev['f'], v1_c_prev['f'] = lstm(m_a[t], v1_h_prev['f'], v1_c_prev['f'])
-            v1_steps_list['f'].append(v1_h_prev['f'])
+            v1_h_prev['f2'], v1_c_prev['f2'] = lstm(m_a[t], v1_h_prev['f2'], v1_c_prev['f2'], 'f2')
+            v1_steps_list['f2'].append(v1_h_prev['f2'])
 
-            v2_h_prev['f'], v2_c_prev['f'] = lstm(m_b[t], v2_h_prev['f'], v2_c_prev['f'])
-            v2_steps_list['f'].append(v2_steps_list['f'])
+            v2_h_prev['f2'], v2_c_prev['f2'] = lstm(m_b[t], v2_h_prev['f2'], v2_c_prev['f2'], 'f2')
+            v2_steps_list['f2'].append(v2_steps_list['f2'])
 
-        v1_steps['f'] = tf.pack(v1_steps_list['f'], axis=1)    
-        v2_steps['f'] = tf.pack(v2_steps_list['f'], axis=1)
+        #v1_steps['f2'] = tf.pack(v1_steps_list['f2'], axis=1)    
+        #v2_steps['f2'] = tf.pack(v2_steps_list['f2'], axis=1)
 
         # Unroll BACKWARD pass of LSTMs for both composition layers
         for t in range(self.sequence_length-1, -1, -1):
-            v1_h_prev['b'], v1_c_prev['b'] = lstm(m_a[t], v1_h_prev['b'], v1_c_prev['b'])
-            v1_steps_list['b'].append(v1_h_prev['b'])
+            v1_h_prev['b2'], v1_c_prev['b2'] = lstm(m_a[t], v1_h_prev['b2'], v1_c_prev['b2'], 'b2')
+            v1_steps_list['b2'].append(v1_h_prev['b2'])
 
-            v2_h_prev['b'], v2_c_prev['b'] = lstm(m_b[t], v2_h_prev['b'], v2_c_prev['b'])
-            v2_steps_list['b'].append(v2_steps_list['b'])
+            v2_h_prev['b2'], v2_c_prev['b2'] = lstm(m_b[t], v2_h_prev['b2'], v2_c_prev['b2'], 'b2')
+            v2_steps_list['b2'].append(v2_steps_list['b2'])
 
-        v1_steps['b'] = tf.pack(v1_steps_list['b'], axis=1) #?need?
-        v2_steps['b'] = tf.pack(v2_steps_list['b'], axis=1) #?need?
+        #v1_steps['b2'] = tf.pack(v1_steps_list['b2'], axis=1) #?need?
+        #v2_steps['b2'] = tf.pack(v2_steps_list['b2'], axis=1) #?need?
 
-        v1_list_bi = tf.concat(1, [v1_steps_list['f'], v1_steps_list['b']]) 
-        v2_list_bi = tf.concat(1, [v2_steps_list['f'], v2_steps_list['b']]) 
+        #v1_list_bi = tf.concat(1, [v1_steps_list['f2'], v1_steps_list['b2']]) 
+        #v2_list_bi = tf.concat(1, [v2_steps_list['f2'], v2_steps_list['b2']]) 
 
-        v1_steps_bi = tf.concat(1, [v1_steps['f'], v1_steps['b']]) #?need?
-        v2_steps_bi = tf.concat(1, [v2_steps['f'], v2_steps['b']]) #?need?
+        #v1_steps_bi = tf.concat(1, [v1_steps['f2'], v1_steps['b2']]) #?need?
+        #v2_steps_bi = tf.concat(1, [v2_steps['f2'], v2_steps['b2']]) #?need?
 
-        # Convert to fixed lenght vector
+        v1_list_bi = []
+        v2_list_bi = []
 
+        for t in range(self.sequence_length):
+            v1_bi_step = tf.concat(1, [v1_steps_list['f2'][t], v1_steps_list['b2'][t]])
+            v1_list_bi.append(v1_bi_step)
+            v2_bi_step = tf.concat(1, [v2_steps_list['f2'][t], v2_steps_list['b2'][t]])
+            v2_list_bi.append(v2_bi_step)
+
+        v1_steps_bi = tf.pack(v1_list_bi, axis=1)
+        v2_steps_bi = tf.pack(v2_list_bi, axis=1)
+
+        print "V1 STEPS BI, PACKED", v1_steps_bi
+
+        ### Pooling Layer ###
+
+        v_1_ave = tf.reduce_sum
+
+        # Convert to fixed length vector
+
+        ### MLP
+        # tanh activation 
 
         # Get prediction
         self.logits = tf.matmul(self.h, self.W_cl) + self.b_cl
