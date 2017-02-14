@@ -62,6 +62,9 @@ class EBIMClassifier:
             self.b_c[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
 
         
+        self.W_mlp = tf.Variable(tf.random_normal([self.dim * 8, self.dim], stddev=0.1))
+        self.b_mlp = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
+
         self.W_cl = tf.Variable(tf.random_normal([self.dim, 3], stddev=0.1))
         self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1))
                 
@@ -86,6 +89,7 @@ class EBIMClassifier:
         self.x_hypothesis_slices = tf.split(1, self.sequence_length, self.hypothesis_x)
         
         self.h_zero = tf.zeros(tf.pack([tf.shape(self.premise_x)[0], self.dim]))
+        print "HIDDEN ZERO", self.h_zero 
 
         premise_h_prev = {}
         premise_c_prev = {}
@@ -163,14 +167,15 @@ class EBIMClassifier:
 
         print "ONE ALPHA", alpha_ij
         print "ONE A-TILDE", a_tilde_i 
-        print "test", tf.mul(alpha_ij, premise_steps_bi)
+        print "test", tf.unpack(scores_all[0], axis=1)
 
         hypothesis_attn = []
         for j in range(len(hypothesis_list_bi)):
             scores_j_list = []
             for i in range(len(premise_list_bi)):
-                scores_j_list.append(scores_all[i][j])
-            scores_j = tf.pack(scores_j_list)
+                score_ij = tf.unpack(scores_all[i], axis=1)[j]
+                scores_j_list.append(score_ij)
+            scores_j = tf.pack(scores_j_list, axis=1)
             beta_ij = tf.nn.softmax(scores_j, dim=1)
             b_tilde_j = tf.reduce_sum(tf.mul(beta_ij, hypothesis_steps_bi), 1)
             hypothesis_attn.append(b_tilde_j)
@@ -178,6 +183,7 @@ class EBIMClassifier:
 
         print "SCORES ALL", scores_all
         print "PREM ATTN", premise_attn
+        print "HYP ATTN", hypothesis_attn
         
         #self.complete_attn_weights = tf.pack(alpha_kj_list, 2)
 
@@ -196,7 +202,8 @@ class EBIMClassifier:
             m_a.append(m_a_i)
             m_b.append(m_b_i)
 
-        print "M_A", m_a
+        print "M_b", m_b
+        print "M_a", m_a
 
         ### Inference Composition ###
 
@@ -223,7 +230,7 @@ class EBIMClassifier:
             v1_steps_list['f2'].append(v1_h_prev['f2'])
 
             v2_h_prev['f2'], v2_c_prev['f2'] = lstm(m_b[t], v2_h_prev['f2'], v2_c_prev['f2'], 'f2')
-            v2_steps_list['f2'].append(v2_steps_list['f2'])
+            v2_steps_list['f2'].append(v2_h_prev['f2'])
 
         #v1_steps['f2'] = tf.pack(v1_steps_list['f2'], axis=1)    
         #v2_steps['f2'] = tf.pack(v2_steps_list['f2'], axis=1)
@@ -234,7 +241,7 @@ class EBIMClassifier:
             v1_steps_list['b2'].append(v1_h_prev['b2'])
 
             v2_h_prev['b2'], v2_c_prev['b2'] = lstm(m_b[t], v2_h_prev['b2'], v2_c_prev['b2'], 'b2')
-            v2_steps_list['b2'].append(v2_steps_list['b2'])
+            v2_steps_list['b2'].append(v2_h_prev['b2'])
 
         #v1_steps['b2'] = tf.pack(v1_steps_list['b2'], axis=1) #?need?
         #v2_steps['b2'] = tf.pack(v2_steps_list['b2'], axis=1) #?need?
@@ -261,15 +268,19 @@ class EBIMClassifier:
 
         ### Pooling Layer ###
 
-        v_1_ave = tf.reduce_sum
+        v_1_ave = tf.reduce_sum(v1_steps_bi, 1) / self.sequence_length
+        v_2_ave = tf.reduce_sum(v2_steps_bi, 1) / self.sequence_length
+        v_1_max = tf.reduce_max(v1_steps_bi, 1)
+        v_2_max = tf.reduce_max(v2_steps_bi, 1)
 
-        # Convert to fixed length vector
+        v = tf.concat(1, [v_1_ave, v_2_ave, v_1_max, v_2_max])
 
-        ### MLP
-        # tanh activation 
+        # MLP layers
+        self.h_mlp = tf.nn.tanh(tf.matmul(v, self.W_mlp) + self.b_mlp)
 
         # Get prediction
-        self.logits = tf.matmul(self.h, self.W_cl) + self.b_cl
+        # softmax instead of linear layer?
+        self.logits = tf.matmul(self.h_mlp, self.W_cl) + self.b_cl
 
         # Define the cost function
         self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, self.y))
@@ -333,7 +344,7 @@ class EBIMClassifier:
 
 
 classifier = EBIMClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
-classifier.train(training_set, dev_set)
+classifier.train(training_set[:1000], dev_set)
 
 evaluate_classifier(classifier.classify, dev_set)
 
