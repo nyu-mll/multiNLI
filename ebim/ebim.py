@@ -1,7 +1,7 @@
 import tensorflow as tf
-import parameters
-from data_processing import *
-from evaluate import evaluate_classifier 
+import util.parameters
+from util.data_processing import *
+from util.evaluate import evaluate_classifier 
 
 FIXED_PARAMETERS = parameters.load_parameters()
 
