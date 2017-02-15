@@ -12,20 +12,21 @@ args = parser.parse_args()
 
 def load_parameters():
     FIXED_PARAMETERS = {
-        "data_type":     "snli",
-        "training_data_path":    "../data/snli_1.0/snli_1.0_train.jsonl".format(args.datapath),
-        "dev_data_path":    "../data/snli_1.0/snli_1.0_dev.jsonl".format(args.datapath),
-        "test_data_path":    "../data/snli_1.0/snli_1.0_test.jsonl".format(args.datapath),
-        "embedding_data_path": "../data/glove.6B.50d.txt".format(args.datapath),
+        "data_type": "snli",
+        "training_data_path": "../data/snli_1.0/snli_1.0_train.jsonl".format(args.datapath),
+        "dev_data_path": "../data/snli_1.0/snli_1.0_dev.jsonl".format(args.datapath),
+        "test_data_path": "../data/snli_1.0/snli_1.0_test.jsonl".format(args.datapath),
+        "embedding_data_path": "../data/glove.840B.300d.txt".format(args.datapath),
         "embeddings_to_load": 50000,
         "log_path": "{}".format(args.logpath),
-        "word_embedding_dim":   50,
-        "seq_length":   25,
+        "word_embedding_dim": 300,
+        "hidden_embedding_dim": 300,
+        "seq_length": 25,
         #"eval_seq_length":  "50",
         #"eval_interval_steps": "500",
         #"statistics_interval_steps": "500",
         #"use_internal_parser": "",
-        "batch_size":  32,
+        "batch_size": 32,
         #"ckpt_path":  "{}".format(args.logpath)
     }
 
