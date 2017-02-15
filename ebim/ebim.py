@@ -17,9 +17,10 @@ loaded_embeddings = loadEmebdding(FIXED_PARAMETERS["embedding_data_path"], word_
 class EBIMClassifier:
     def __init__(self, vocab_size, seq_length):
         ## Define hyperparameters
-        self.learning_rate = 0.03
+        self.learning_rate = 0.0004
         self.training_epochs = 100
         self.display_epoch_freq = 1
+        self.display_step_freq = 250
         self.embedding_dim = FIXED_PARAMETERS["word_embedding_dim"]
         self.dim = FIXED_PARAMETERS["hidden_embedding_dim"]
         self.batch_size = FIXED_PARAMETERS["batch_size"]
@@ -89,7 +90,7 @@ class EBIMClassifier:
         self.x_hypothesis_slices = tf.split(1, self.sequence_length, self.hypothesis_x)
         
         self.h_zero = tf.zeros(tf.pack([tf.shape(self.premise_x)[0], self.dim]))
-        print "HIDDEN ZERO", self.h_zero 
+        #print "HIDDEN ZERO", self.h_zero 
 
         premise_h_prev = {}
         premise_c_prev = {}
@@ -141,13 +142,14 @@ class EBIMClassifier:
             hypothesis_bi_step = tf.concat(1, [hypothesis_steps_list['f'][t], hypothesis_steps_list['b'][t]])
             hypothesis_list_bi.append(hypothesis_bi_step) 
 
-        print "PREMISE FORWARD LIST", premise_steps_list['f']
-        print "PREMISE LIST BI", premise_list_bi
+        #print "PREMISE FORWARD LIST", premise_steps_list['f']
+        #print "PREMISE LIST BI", premise_list_bi
 
         premise_steps_bi = tf.pack(premise_list_bi, axis=1)
         hypothesis_steps_bi = tf.pack(hypothesis_list_bi, axis=1)
 
-        print "PREMISE STEPS BI, PACKED", premise_steps_bi
+        #print "PREMISE STEPS BI, PACKED", premise_steps_bi
+        
         ### Attention ###
 
         scores_all = []
@@ -165,9 +167,9 @@ class EBIMClassifier:
             
             scores_all.append(scores_i)
 
-        print "ONE ALPHA", alpha_ij
-        print "ONE A-TILDE", a_tilde_i 
-        print "test", tf.unpack(scores_all[0], axis=1)
+        #print "ONE ALPHA", alpha_ij
+        #print "ONE A-TILDE", a_tilde_i 
+        #print "test", tf.unpack(scores_all[0], axis=1)
 
         hypothesis_attn = []
         for j in range(len(hypothesis_list_bi)):
@@ -181,9 +183,9 @@ class EBIMClassifier:
             hypothesis_attn.append(b_tilde_j)
 
 
-        print "SCORES ALL", scores_all
-        print "PREM ATTN", premise_attn
-        print "HYP ATTN", hypothesis_attn
+        #print "SCORES ALL", scores_all
+        #print "PREM ATTN", premise_attn
+        #print "HYP ATTN", hypothesis_attn
         
         #self.complete_attn_weights = tf.pack(alpha_kj_list, 2)
 
@@ -202,8 +204,8 @@ class EBIMClassifier:
             m_a.append(m_a_i)
             m_b.append(m_b_i)
 
-        print "M_b", m_b
-        print "M_a", m_a
+        #print "M_b", m_b
+        #print "M_a", m_a
 
         ### Inference Composition ###
 
@@ -264,7 +266,7 @@ class EBIMClassifier:
         v1_steps_bi = tf.pack(v1_list_bi, axis=1)
         v2_steps_bi = tf.pack(v2_list_bi, axis=1)
 
-        print "V1 STEPS BI, PACKED", v1_steps_bi
+        #print "V1 STEPS BI, PACKED", v1_steps_bi
 
         ### Pooling Layer ###
 
@@ -286,7 +288,8 @@ class EBIMClassifier:
         self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, self.y))
 
         # Perform gradient descent
-        self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.total_cost)
+        #self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.total_cost)
+        self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.total_cost)
 
         # tf things: initialize variables abd create palceholder for sesson
         self.init = tf.initialize_all_variables()
@@ -303,6 +306,9 @@ class EBIMClassifier:
         self.sess = tf.Session()
         
         self.sess.run(self.init)
+        self.step = 1
+        self.epoch = 0
+
         print 'Training...'
 
         # Training cycle
@@ -324,15 +330,22 @@ class EBIMClassifier:
                                                 self.hypothesis_x: minibatch_hypothesis_vectors,
                                                 self.y: minibatch_labels})
 
+                # Since a single epoch can take a  ages, we'll print accuracy every 250 steps as well as every epoch
+                if self.step % self.display_step_freq == 0:
+                    print "Step:", self.step, "Dev acc:", evaluate_classifier(self.classify, dev_data[:]), \
+                        "Train acc:", evaluate_classifier(self.classify, training_data[0:5000]) 
+                                  
+                self.step += 1
+
                 # Compute average loss
                 avg_cost += c / (total_batch * self.batch_size)
                                 
             # Display some statistics about the step
             # Evaluating only one batch worth of data -- simplifies implementation slightly
-            if (epoch+1) % self.display_epoch_freq == 0:
-                print "Epoch:", (epoch+1), "Cost:", avg_cost, \
-                    "Dev acc:", evaluate_classifier(self.classify, dev_data[0:1000]), \
-                    "Train acc:", evaluate_classifier(self.classify, training_data[0:1000])  
+            #if (epoch+1) % self.display_epoch_freq == 0:
+            if self.epoch % self.display_epoch_freq == 0:
+                print "Epoch:", (epoch+1), "Cost:", avg_cost
+            self.epoch += 1 
     
     def classify(self, examples):
         # This classifies a list of examples
@@ -344,7 +357,7 @@ class EBIMClassifier:
 
 
 classifier = EBIMClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
-classifier.train(training_set[:1000], dev_set)
+classifier.train(training_set, dev_set)
 
 evaluate_classifier(classifier.classify, dev_set)
 
