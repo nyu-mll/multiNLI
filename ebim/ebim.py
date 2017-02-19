@@ -24,7 +24,7 @@ class EBIMClassifier:
         self.embedding_dim = FIXED_PARAMETERS["word_embedding_dim"]
         self.dim = FIXED_PARAMETERS["hidden_embedding_dim"]
         self.batch_size = FIXED_PARAMETERS["batch_size"]
-        #self.keep_rate = 0.5
+        self.keep_rate = 0.5
         self.sequence_length = FIXED_PARAMETERS["seq_length"]
 
         # Define the placeholders
@@ -83,7 +83,8 @@ class EBIMClassifier:
 
         def lstm_step(x, h_prev, c_prev, name):
             emb = tf.nn.embedding_lookup(self.E, x)
-            return lstm(emb, h_prev, c_prev, name)
+            emb_drop = tf.nn.dropout(emb, self.keep_rate) # Dropout applied to embeddings
+            return lstm(emb_drop, h_prev, c_prev, name)
 
         # Split up the inputs into individual tensors
         self.x_premise_slices = tf.split(1, self.sequence_length, self.premise_x)
@@ -277,21 +278,22 @@ class EBIMClassifier:
 
         v = tf.concat(1, [v_1_ave, v_2_ave, v_1_max, v_2_max])
 
-        # MLP layers
-        self.h_mlp = tf.nn.tanh(tf.matmul(v, self.W_mlp) + self.b_mlp)
+        # MLP layer
+        h_mlp = tf.nn.tanh(tf.matmul(v, self.W_mlp) + self.b_mlp)
+
+        # Dropout applied to classifier
+        h_drop = tf.nn.dropout(h_mlp, self.keep_rate)
 
         # Get prediction
-        # softmax instead of linear layer?
-        self.logits = tf.matmul(self.h_mlp, self.W_cl) + self.b_cl
+        self.logits = tf.matmul(h_drop, self.W_cl) + self.b_cl
 
         # Define the cost function
         self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, self.y))
 
-        # Perform gradient descent
-        #self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.total_cost)
+        # Perform gradient descent with Adam
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.total_cost)
 
-        # tf things: initialize variables abd create palceholder for sesson
+        # tf things: initialize variables and create placeholder for session
         self.init = tf.initialize_all_variables()
         self.sess = None
     
