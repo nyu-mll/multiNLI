@@ -17,7 +17,7 @@ LABEL_MAP = {
 }
 
 PADDING = "<PAD>"
-UNKNOWN = "<UNK>"
+#UNKNOWN = "<UNK>"
 
 
 '''
@@ -49,13 +49,14 @@ def sentences_to_padded_index_sequences(datasets):
         return string.lower().split()
     
     word_counter = collections.Counter()
-    for example in datasets[0]:
-        word_counter.update(tokenize(example['sentence1_binary_parse']))
-        word_counter.update(tokenize(example['sentence2_binary_parse']))
+    for i, dataset in enumerate(datasets):
+        for example in dataset:
+            word_counter.update(tokenize(example['sentence1_binary_parse']))
+            word_counter.update(tokenize(example['sentence2_binary_parse']))
         
     vocabulary = set([word for word in word_counter])
     vocabulary = list(vocabulary)
-    vocabulary = [UNKNOWN, PADDING] + vocabulary
+    vocabulary = [PADDING] + vocabulary
         
     word_indices = dict(zip(vocabulary, range(len(vocabulary))))
     indices_to_words = {v: k for k, v in word_indices.items()}
@@ -70,10 +71,11 @@ def sentences_to_padded_index_sequences(datasets):
 
                 for i in range(FIXED_PARAMETERS["seq_length"]):
                     if i >= padding:
-                        if token_sequence[i - padding] in word_indices:
-                            index = word_indices[token_sequence[i - padding]]
-                        else:
-                            index = word_indices[UNKNOWN]
+                        index = word_indices[token_sequence[i - padding]]
+                        #if token_sequence[i - padding] in word_indices:
+                        #    index = word_indices[token_sequence[i - padding]]
+                        #else:
+                        #    index = word_indices[UNKNOWN]
                     else:
                         index = word_indices[PADDING]
                     example[sentence + '_index_sequence'][i] = index
@@ -85,8 +87,9 @@ def sentences_to_padded_index_sequences(datasets):
 Load GloVe embeddings
 '''
 
-def loadEmebdding(path, word_indices):
+def loadEmebdding_zeros(path, word_indices):
     emb = np.zeros((len(word_indices), FIXED_PARAMETERS["word_embedding_dim"]), dtype='float32')
+    
     with open(path, 'r') as f:
         for i, line in enumerate(f):
             if i >= FIXED_PARAMETERS["embeddings_to_load"]: 
@@ -95,6 +98,28 @@ def loadEmebdding(path, word_indices):
             s = line.split()
             if s[0] in word_indices:
                 emb[word_indices[s[0]], :] = np.asarray(s[1:])
+
     return emb
 
-     
+
+def loadEmebdding_rand(path, word_indices):
+    n = len(word_indices)
+    m = FIXED_PARAMETERS["word_embedding_dim"]
+    emb = np.empty((n, m), dtype=np.float32)
+
+    # Can do batch-wise
+    #k = 10000
+    for i in range(0, n, n):
+        emb[i:i+n] = np.random.normal(size=(n,m))
+    
+    with open(path, 'r') as f:
+        for i, line in enumerate(f):
+            if i >= FIXED_PARAMETERS["embeddings_to_load"]: 
+                break
+            
+            s = line.split()
+            if s[0] in word_indices:
+                emb[word_indices[s[0]], :] = np.asarray(s[1:])
+
+    return emb
+
