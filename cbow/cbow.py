@@ -1,8 +1,7 @@
 import tensorflow as tf
-import parameters
-from process import sentences_to_padded_index_sequences
-from data_processing import *
-from evaluate import evaluate_classifier 
+import util.parameters
+from util.data_processing import *
+from util.evaluate import evaluate_classifier 
 
 FIXED_PARAMETERS = parameters.load_parameters()
 
@@ -64,9 +63,9 @@ class CBOWClassifier:
 
 		### MLP HERE (without dropout)
 		mlp_input = tf.concat(1, [premise_rep, hypothesis_rep, h_diff, h_mul])
-		h_1 = tf.nn.relu(tf.add(tf.matmul(mlp_input, self.W_0), self.b_0))
-		h_2 = tf.nn.relu(tf.add(tf.matmul(h_1, self.W_1), self.b_1))
-		self.h_3 = tf.nn.relu(tf.add(tf.matmul(h_2, self.W_2), self.b_2))
+		h_1 = tf.nn.relu(tf.matmul(mlp_input, self.W_0) + self.b_0)
+		h_2 = tf.nn.relu(tf.matmul(h_1, self.W_1) + self.b_1)
+		self.h_3 = tf.nn.relu(tf.matmul(h_2, self.W_2) + self.b_2)
 
 		# Get prediction
 		self.logits = tf.matmul(self.h_3, self.W_cl) + self.b_cl
@@ -135,5 +134,5 @@ class CBOWClassifier:
 classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
 classifier.train(training_set, dev_set)
 
-evaluate_classifier(classifier.classify, dev_set)
+print "Test acc:", evaluate_classifier(classifier.classify, dev_set)
 
