@@ -10,8 +10,7 @@ dev_set = load_nli_data(FIXED_PARAMETERS["dev_data_path"])
 test_set = load_nli_data(FIXED_PARAMETERS["test_data_path"])
 
 indices_to_words, word_indices = sentences_to_padded_index_sequences([training_set, dev_set, test_set])
-
-loaded_embeddings = loadEmebdding(FIXED_PARAMETERS["embedding_data_path"], word_indices)
+loaded_embeddings = loadEmebdding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
 
 class EBIMClassifier:
@@ -24,7 +23,7 @@ class EBIMClassifier:
         self.embedding_dim = FIXED_PARAMETERS["word_embedding_dim"]
         self.dim = FIXED_PARAMETERS["hidden_embedding_dim"]
         self.batch_size = FIXED_PARAMETERS["batch_size"]
-        self.keep_rate = 0.5
+        self.keep_rate = FIXED_PARAMETERS["keep_rate"]
         self.sequence_length = FIXED_PARAMETERS["seq_length"]
 
         # Define the placeholders
@@ -33,7 +32,7 @@ class EBIMClassifier:
         self.y = tf.placeholder(tf.int32, [None])
 
         # Define parameters
-        self.E = tf.Variable(loaded_embeddings, trainable=False)
+        self.E = tf.Variable(loaded_embeddings, trainable=True)
 
         self.W_f = {}
         self.W_i = {}
@@ -359,7 +358,7 @@ class EBIMClassifier:
 
 
 classifier = EBIMClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
-classifier.train(training_set, dev_set)
+classifier.train(training_set[:1000], dev_set[:1000])
 
-evaluate_classifier(classifier.classify, dev_set)
+print "Test acc:", evaluate_classifier(classifier.classify, test_set)
 
