@@ -1,9 +1,13 @@
 import tensorflow as tf
+import os
+from util import logger
 import util.parameters
 from util.data_processing import *
 from util.evaluate import evaluate_classifier 
 
 FIXED_PARAMETERS = parameters.load_parameters()
+
+logger = logger.Logger(os.path.join(FIXED_PARAMETERS["log_path"], "ebim") + ".log")
 
 training_set = load_nli_data(FIXED_PARAMETERS["training_data_path"])
 dev_set = load_nli_data(FIXED_PARAMETERS["dev_data_path"])
@@ -30,6 +34,7 @@ class EBIMClassifier:
         self.premise_x = tf.placeholder(tf.int32, [None, self.sequence_length])
         self.hypothesis_x = tf.placeholder(tf.int32, [None, self.sequence_length])
         self.y = tf.placeholder(tf.int32, [None])
+        self.keep_rate_ph = tf.placeholder(tf.float32, [])
 
         # Define parameters
         self.E = tf.Variable(loaded_embeddings, trainable=True)
@@ -82,7 +87,7 @@ class EBIMClassifier:
 
         def lstm_step(x, h_prev, c_prev, name):
             emb = tf.nn.embedding_lookup(self.E, x)
-            emb_drop = tf.nn.dropout(emb, self.keep_rate) # Dropout applied to embeddings
+            emb_drop = tf.nn.dropout(emb, self.keep_rate_ph) # Dropout applied to embeddings
             return lstm(emb_drop, h_prev, c_prev, name)
 
         # Split up the inputs into individual tensors
@@ -281,7 +286,7 @@ class EBIMClassifier:
         h_mlp = tf.nn.tanh(tf.matmul(v, self.W_mlp) + self.b_mlp)
 
         # Dropout applied to classifier
-        h_drop = tf.nn.dropout(h_mlp, self.keep_rate)
+        h_drop = tf.nn.dropout(h_mlp, self.keep_rate_ph)
 
         # Get prediction
         self.logits = tf.matmul(h_drop, self.W_cl) + self.b_cl
@@ -329,12 +334,14 @@ class EBIMClassifier:
                 _, c = self.sess.run([self.optimizer, self.total_cost], 
                                      feed_dict={self.premise_x: minibatch_premise_vectors,
                                                 self.hypothesis_x: minibatch_hypothesis_vectors,
-                                                self.y: minibatch_labels})
+                                                self.y: minibatch_labels, 
+                                                self.keep_rate_ph: self.keep_rate})
 
                 # Since a single epoch can take a  ages, we'll print accuracy every 250 steps as well as every epoch
                 if self.step % self.display_step_freq == 0:
-                    print "Step:", self.step, "Dev acc:", evaluate_classifier(self.classify, dev_data[:]), \
-                        "Train acc:", evaluate_classifier(self.classify, training_data[0:5000]) 
+                    '''print "Step:", self.step, "Dev acc:", evaluate_classifier(self.classify, dev_data[:]), \
+                                                                                    "Train acc:", evaluate_classifier(self.classify, training_data[0:5000]) '''
+                    logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, evaluate_classifier(self.classify, dev_data[:]), evaluate_classifier(self.classify, training_data[0:5000])))
                                   
                 self.step += 1
 
@@ -345,7 +352,8 @@ class EBIMClassifier:
             # Evaluating only one batch worth of data -- simplifies implementation slightly
             #if (epoch+1) % self.display_epoch_freq == 0:
             if self.epoch % self.display_epoch_freq == 0:
-                print "Epoch:", (epoch+1), "Cost:", avg_cost
+                #print "Epoch:", (epoch+1), "Cost:", avg_cost
+                logger.Log("Epoch: %i\t Cost: %f" %(epoch+1, avg_cost))
             self.epoch += 1 
     
     def classify(self, examples):
@@ -353,7 +361,8 @@ class EBIMClassifier:
         premise_vectors = np.vstack([example['sentence1_binary_parse_index_sequence'] for example in examples])
         hypothesis_vectors = np.vstack([example['sentence2_binary_parse_index_sequence'] for example in examples])
         logits = self.sess.run(self.logits, feed_dict={self.premise_x: premise_vectors,
-                                                       self.hypothesis_x: hypothesis_vectors})
+                                                       self.hypothesis_x: hypothesis_vectors, 
+                                                       self.keep_rate_ph: 1.0})
         return np.argmax(logits, axis=1)
 
 
