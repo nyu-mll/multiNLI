@@ -2,8 +2,12 @@ import tensorflow as tf
 import util.parameters
 from util.data_processing import *
 from util.evaluate import evaluate_classifier 
+from util import logger
+import os
 
 FIXED_PARAMETERS = parameters.load_parameters()
+
+logger = logger.Logger(os.path.join(FIXED_PARAMETERS["log_path"], "cbow") + ".log")
 
 training_set = load_nli_data(FIXED_PARAMETERS["training_data_path"])
 dev_set = load_nli_data(FIXED_PARAMETERS["dev_data_path"])
@@ -11,8 +15,7 @@ test_set = load_nli_data(FIXED_PARAMETERS["test_data_path"])
 
 indices_to_words, word_indices = sentences_to_padded_index_sequences([training_set, dev_set, test_set])
 
-loaded_embeddings = loadEmebdding(FIXED_PARAMETERS["embedding_data_path"], word_indices)
-
+loaded_embeddings = loadEmebdding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
 class CBOWClassifier:
 	def __init__(self, vocab_size, seq_length):
@@ -118,9 +121,10 @@ class CBOWClassifier:
 	        # Display some statistics about the step
 	        # Evaluating only one batch worth of data -- simplifies implementation slightly
 	        if (epoch+1) % self.display_epoch_freq == 0:
-	            print "Epoch:", (epoch+1), "Cost:", avg_cost, \
-	                "Dev acc:", evaluate_classifier(self.classify, dev_data[0:1000]), \
-	                "Train acc:", evaluate_classifier(self.classify, training_data[0:1000])  
+	            '''print "Epoch:", (epoch+1), "Cost:", avg_cost, \
+	            	            	                	                "Dev acc:", evaluate_classifier(self.classify, dev_data[0:1000]), \
+	            	            	                	                "Train acc:", evaluate_classifier(self.classify, training_data[0:1000])'''
+	            logger.Log("Epoch: %i\t Cost: %f\t Dev acc: %f\t Train acc: %f" %(epoch+1, avg_cost, evaluate_classifier(self.classify, dev_data[:]), evaluate_classifier(self.classify, training_data[0:5000])))
     
 	def classify(self, examples):
 	    # This classifies a list of examples
@@ -134,5 +138,5 @@ class CBOWClassifier:
 classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
 classifier.train(training_set, dev_set)
 
-print "Test acc:", evaluate_classifier(classifier.classify, dev_set)
+print "Test acc:", evaluate_classifier(classifier.classify, test_set)
 
