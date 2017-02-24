@@ -83,10 +83,10 @@ class CBOWClassifier:
 		# Perform gradient descent
 		self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.total_cost)
 
-
 		# tf things: initialize variables abd create palceholder for sesson
 		self.init = tf.initialize_all_variables()
 		self.sess = None
+		self.saver = tf.train.Saver()
 	
 	def train(self, training_data, dev_data):
 		def get_minibatch(dataset, start_index, end_index):
@@ -97,13 +97,16 @@ class CBOWClassifier:
 			return premise_vectors, hypothesis_vectors, labels
 		
 		# Create a saver for checkpointing
-		self.saver = tf.train.Saver()
-
-		if #some model exists:
-
+		#self.saver = tf.train.Saver()
 
 		self.sess = tf.Session()
 		self.sess.run(self.init)
+
+		# Restore best-checkpoint if it exists
+		ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], "cbow.ckpt")
+		if os.path.isfile(ckpt_file):
+			self.saver.restore(self.sess, ckpt_file)
+			print("Model restored from file: %s" % ckpt_file)
 
 		self.step = 1
 		self.epoch = 0
@@ -113,7 +116,7 @@ class CBOWClassifier:
 		### Training Cycle
 
 		self.best_dev_acc = 0.
-		self.last_train_acc = 0.
+		self.last_train_acc = [0., 0., 0.]
 		self.best_epoch = 0
 
 		while True:
@@ -139,7 +142,6 @@ class CBOWClassifier:
 				if self.step % self.display_step_freq == 0:
 					dev_acc = evaluate_classifier(self.classify, dev_data)
 					train_acc = evaluate_classifier(self.classify, training_data[0:5000])
-					#logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, evaluate_classifier(self.classify, dev_data), evaluate_classifier(self.classify, training_data[0:5000])))
 					logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, dev_acc, train_acc))
 
 				if self.step % 10000 == 0:
@@ -164,16 +166,18 @@ class CBOWClassifier:
 
 			# Early stopping
 			termination_test = 100 * (1 - dev_acc / self.best_acc)
-			if ((train_acc - self.last_train_acc < .0001) or 
+			if ((train_acc - self.last_train_acc[0] < .0001) or 
 				(self.epoch > 1000) or 
 				(termination_test > 1.0)):
 				break 
 
-			self.epoch += 1 
-			self.last_train_acc = train_acc
+			self.epoch += 1
+			self.last_train_acc[(self.epoch % 3) - 1] = train_acc
 	
-	def classify(self, examples):
+	def classify(self, examples, using_best=False):
 		# This classifies a list of examples
+		if using_best == True:
+			self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], "cbow.ckpt_best"))
 		premise_vectors = np.vstack([example['sentence1_binary_parse_index_sequence'] for example in examples])
 		hypothesis_vectors = np.vstack([example['sentence2_binary_parse_index_sequence'] for example in examples])
 		logits = self.sess.run(self.logits, feed_dict={self.premise_x: premise_vectors,
@@ -185,5 +189,5 @@ class CBOWClassifier:
 classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
 classifier.train(training_set, dev_set)
 
-print "Test acc:", evaluate_classifier(classifier.classify, test_set)
+print "Test acc:", evaluate_classifier(classifier.classify, test_set, using_best=True)
 
