@@ -59,13 +59,9 @@ class CBOWClassifier:
 	
 		emb_hypothesis = tf.nn.embedding_lookup(self.E, self.hypothesis_x)
 		emb_hypothesis_drop = tf.nn.dropout(emb_hypothesis, self.keep_rate_ph)
-		print emb_premise
-			# expected shape: (None, sequence_length, embedding_size)
 
 		premise_rep = tf.reduce_sum(emb_premise_drop, 1)
 		hypothesis_rep = tf.reduce_sum(emb_hypothesis_drop, 1)
-			# expected shape: [None, embedding_size]
-		print premise_rep
 
 		## Combinations
 		h_diff = premise_rep - hypothesis_rep
@@ -87,6 +83,7 @@ class CBOWClassifier:
 		# Perform gradient descent
 		self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.total_cost)
 
+
 		# tf things: initialize variables abd create palceholder for sesson
 		self.init = tf.initialize_all_variables()
 		self.sess = None
@@ -99,9 +96,15 @@ class CBOWClassifier:
 			labels = [dataset[i]['label'] for i in indices]
 			return premise_vectors, hypothesis_vectors, labels
 		
+		# Create a saver for checkpointing
+		self.saver = tf.train.Saver()
+
+		if #some model exists:
+
+
 		self.sess = tf.Session()
-		
 		self.sess.run(self.init)
+
 		self.step = 1
 		self.epoch = 0
 
@@ -109,7 +112,12 @@ class CBOWClassifier:
 
 		### Training Cycle
 
-		for epoch in range(self.training_epochs):
+		self.best_dev_acc = 0.
+		self.last_train_acc = 0.
+		self.best_epoch = 0
+
+		while True:
+		#for epoch in range(self.training_epochs):
 			random.shuffle(training_data)
 			avg_cost = 0.
 			total_batch = int(len(training_data) / self.batch_size)
@@ -129,7 +137,18 @@ class CBOWClassifier:
 												self.keep_rate_ph: self.keep_rate})
 
 				if self.step % self.display_step_freq == 0:
-					logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, evaluate_classifier(self.classify, dev_data[:]), evaluate_classifier(self.classify, training_data[0:5000])))
+					dev_acc = evaluate_classifier(self.classify, dev_data)
+					train_acc = evaluate_classifier(self.classify, training_data[0:5000])
+					#logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, evaluate_classifier(self.classify, dev_data), evaluate_classifier(self.classify, training_data[0:5000])))
+					logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, dev_acc, train_acc))
+
+				if self.step % 10000 == 0:
+					self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], "cbow") + ".ckpt")# FIXED_PARAMETERS[""]'./logs/ebim.ckpt', global_step=self.step)
+					best_test = 100 * (dev_acc / self.best_acc - 1)
+					if best_test > 0.1:
+						self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], "cbow") + ".ckpt_best")
+						self.best_epoch = self.epoch
+						self.best_acc = dev_acc
 								  
 				self.step += 1
 
@@ -140,13 +159,18 @@ class CBOWClassifier:
 			# Evaluating only one batch worth of data -- simplifies implementation slightly
 			if self.epoch % self.display_epoch_freq == 0:
 				#print "Epoch:", (epoch+1), "Cost:", avg_cost
-				logger.Log("Epoch: %i\t Cost: %f" %(epoch+1, avg_cost))
+				logger.Log("Epoch: %i\t Cost: %f" %(self.epoch+1, avg_cost))
+
+
+			# Early stopping
+			termination_test = 100 * (1 - dev_acc / self.best_acc)
+			if ((train_acc - self.last_train_acc < .0001) or 
+				(self.epoch > 1000) or 
+				(termination_test > 1.0)):
+				break 
+
 			self.epoch += 1 
-			'''if (epoch+1) % self.display_epoch_freq == 0:
-				print "Epoch:", (epoch+1), "Cost:", avg_cost, \
-																		"Dev acc:", evaluate_classifier(self.classify, dev_data[0:1000]), \
-																		"Train acc:", evaluate_classifier(self.classify, training_data[0:1000])'''
-				#logger.Log("Epoch: %i\t Cost: %f\t Dev acc: %f\t Train acc: %f" %(epoch+1, avg_cost, evaluate_classifier(self.classify, dev_data[:]), evaluate_classifier(self.classify, training_data[0:5000])))
+			self.last_train_acc = train_acc
 	
 	def classify(self, examples):
 		# This classifies a list of examples

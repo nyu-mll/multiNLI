@@ -17,9 +17,9 @@ def load_parameters():
         "dev_data_path": "../data/snli_1.0/snli_1.0_dev.jsonl".format(args.datapath),
         "test_data_path": "../data/snli_1.0/snli_1.0_test.jsonl".format(args.datapath),
         "embedding_data_path": "../data/glove.6B/glove.6B.50d.txt".format(args.datapath),
-        "log_path": "logs".format(args.datapath),
+        "log_path": "./logs".format(args.logpath),
+        "ckpt_path":  "./logs".format(args.logpath),
         "embeddings_to_load": 50000,
-        #"log_path": "{}".format(args.logpath),
         "word_embedding_dim": 50, #300,
         "hidden_embedding_dim": 50, #300,
         "seq_length": 25,
@@ -29,7 +29,6 @@ def load_parameters():
         #"statistics_interval_steps": "500",
         #"use_internal_parser": "",
         "batch_size": 32,
-        #"ckpt_path":  "{}".format(args.logpath)
     }
 
     return FIXED_PARAMETERS
