@@ -117,7 +117,7 @@ class CBOWClassifier:
 
 		self.best_dev_acc = 0.
 		self.last_train_acc = [0., 0., 0.]
-		self.best_epoch = 0
+		#self.best_epoch = 0 --> if we want to test on last best-checkpoint saved.
 
 		while True:
 		#for epoch in range(self.training_epochs):
@@ -146,10 +146,10 @@ class CBOWClassifier:
 
 				if self.step % 10000 == 0:
 					self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], "cbow") + ".ckpt")# FIXED_PARAMETERS[""]'./logs/ebim.ckpt', global_step=self.step)
-					best_test = 100 * (dev_acc / self.best_acc - 1)
+					best_test = 100 * (1 - self.best_dev_acc / dev_acc - 1)
 					if best_test > 0.1:
 						self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], "cbow") + ".ckpt_best")
-						self.best_epoch = self.epoch
+						#self.best_epoch = self.epoch
 						self.best_acc = dev_acc
 								  
 				self.step += 1
@@ -165,7 +165,7 @@ class CBOWClassifier:
 
 
 			# Early stopping
-			termination_test = 100 * (1 - dev_acc / self.best_acc)
+			termination_test = 100 * (self.best_dev_acc / dev_acc - 1)
 			if ((train_acc - self.last_train_acc[0] < .0001) or 
 				(self.epoch > 1000) or 
 				(termination_test > 1.0)):
