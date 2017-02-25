@@ -1,34 +1,32 @@
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--use_encode", action="store_true", default=False, dest="use_encode")
-#parser.add_argument("--use_reinforce", action="store_true", default=False, dest="use_reinforce")
-#parser.add_argument("--rl_baseline", type=str, default="ema")
-parser.add_argument("--runs", type=int, default=4)
-parser.add_argument("--datapath", type=str, default="../data")
-parser.add_argument("--logpath", type=str, default="../logs")
-#parser.add_argument("--venv", type=str, default="~/spinn/.venv-hpc/bin/activate")
+parser.add_argument("model_name", type=str, help="Give model name. For example cbow, cbow-2, spinn etc.")
+parser.add_argument("--data_type", type=str, default="snli", help="Give dataset name, example snli, multiNLI etc.")
+parser.add_argument("--datapath", type=str, default="./data")
+parser.add_argument("--logpath", type=str, default="./logs")
+parser.add_argument("--emb_to_load", type=int, default="50000", help="Number of embeddings to load")  
+#        ---> Change deafult to None to laod all.
+
 args = parser.parse_args()
 
 def load_parameters():
     FIXED_PARAMETERS = {
-        "data_type": "snli",
-        "training_data_path": "../data/snli_1.0/snli_1.0_train.jsonl".format(args.datapath),
-        "dev_data_path": "../data/snli_1.0/snli_1.0_dev.jsonl".format(args.datapath),
-        "test_data_path": "../data/snli_1.0/snli_1.0_test.jsonl".format(args.datapath),
-        "embedding_data_path": "../data/glove.6B/glove.6B.50d.txt".format(args.datapath),
-        "log_path": "./logs".format(args.logpath),
-        "ckpt_path":  "./logs".format(args.logpath),
-        "embeddings_to_load": 50000,
+        "data_type": "{}".format(args.data_type),
+        "model_name": args.model_name,
+        "training_data_path": "{}/snli_1.0/snli_1.0_train.jsonl".format(args.datapath),
+        "dev_data_path": "{}/snli_1.0/snli_1.0_dev.jsonl".format(args.datapath),
+        "test_data_path": "{}/snli_1.0/snli_1.0_test.jsonl".format(args.datapath),
+        "embedding_data_path": "{}/glove.6B/glove.6B.50d.txt".format(args.datapath),
+        "log_path": "{}".format(args.logpath),
+        "ckpt_path":  "{}".format(args.logpath),
+        "embeddings_to_load": "{}".format(args.emb_to_load),
         "word_embedding_dim": 50, #300,
         "hidden_embedding_dim": 50, #300,
         "seq_length": 25,
         "keep_rate": 0.5, 
-        #"eval_seq_length":  "50",
-        #"eval_interval_steps": "500",
-        #"statistics_interval_steps": "500",
-        #"use_internal_parser": "",
         "batch_size": 32,
+        "learning_rate": 0.0004,
     }
 
     return FIXED_PARAMETERS
