@@ -100,9 +100,6 @@ class CBOWClassifier:
 			hypothesis_vectors = np.vstack([dataset[i]['sentence2_binary_parse_index_sequence'] for i in indices])
 			labels = [dataset[i]['label'] for i in indices]
 			return premise_vectors, hypothesis_vectors, labels
-		
-		# Create a saver for checkpointing
-		#self.saver = tf.train.Saver()
 
 		self.sess = tf.Session()
 		self.sess.run(self.init)
@@ -125,7 +122,6 @@ class CBOWClassifier:
 		self.best_dev_acc = 0.
 		self.best_train_acc = 0.
 		self.last_train_acc = [.001, .001, .001, .001, .001]
-		#self.best_epoch = 0 --> if we want to test on last best-checkpoint saved.
 
 		while True:
 		#for epoch in range(self.training_epochs):
@@ -153,7 +149,7 @@ class CBOWClassifier:
 					logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, dev_acc, train_acc))
 
 				if self.step % 10000 == 0:
-					self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")# FIXED_PARAMETERS[""]'./logs/ebim.ckpt', global_step=self.step)
+					self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")
 					best_test = 100 * (1 - self.best_dev_acc / dev_acc)
 					if best_test > 0.1:
 						self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
@@ -199,12 +195,6 @@ class CBOWClassifier:
 													   self.keep_rate_ph: 1.0})
 		return np.argmax(logits, axis=1)
 
-
-'''classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
-classifier.train(training_set, dev_set)
-
-logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
-'''
 
 classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
 

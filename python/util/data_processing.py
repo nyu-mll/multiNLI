@@ -114,7 +114,7 @@ def loadEmebdding_rand(path, word_indices):
     
     with open(path, 'r') as f:
         for i, line in enumerate(f):
-            if i >= FIXED_PARAMETERS["embeddings_to_load"]: 
+            if i >= FIXED_PARAMETERS["embeddings_to_load"]:
                 break
             
             s = line.split()
