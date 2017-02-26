@@ -123,7 +123,8 @@ class CBOWClassifier:
 		### Training Cycle
 
 		self.best_dev_acc = 0.
-		self.last_train_acc = [0., 0., 0., 0., 0.]
+		self.best_train_acc = 0.
+		self.last_train_acc = [.001, .001, .001, .001, .001]
 		#self.best_epoch = 0 --> if we want to test on last best-checkpoint saved.
 
 		while True:
@@ -153,11 +154,12 @@ class CBOWClassifier:
 
 				if self.step % 10000 == 0:
 					self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")# FIXED_PARAMETERS[""]'./logs/ebim.ckpt', global_step=self.step)
-					best_test = 100 * (1 - self.best_dev_acc / dev_acc - 1)
+					best_test = 100 * (1 - self.best_dev_acc / dev_acc)
 					if best_test > 0.1:
 						self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
 						#self.best_epoch = self.epoch
-						self.best_acc = dev_acc
+						self.best_dev_acc = dev_acc
+						self.best_train_acc = train_acc
 								  
 				self.step += 1
 
@@ -170,22 +172,25 @@ class CBOWClassifier:
 				#print "Epoch:", (epoch+1), "Cost:", avg_cost
 				logger.Log("Epoch: %i\t Cost: %f" %(self.epoch+1, avg_cost))
 
+			self.epoch += 1
+			self.last_train_acc[(self.epoch % 5) - 1] = train_acc
 
 			# Early stopping
 			termination_test = 100 * (self.best_dev_acc / dev_acc - 1)
-			progress = 1000 * (sum(last_train_acc)/(5 * min(last_train_acc)) - 1) 
-			
+			progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
+
 			if ((progress < 0.1) or 
 				(self.epoch > 1000) or 
 				(termination_test > 1.0)):
+				logger.Log("Best dev accuracy: %s" %(self.best_dev_acc))
+				logger.Log("Train accuracy: %s" %(self.best_train_acc))
 				break 
-
-			self.epoch += 1
-			self.last_train_acc[(self.epoch % 5) - 1] = train_acc
 	
-	def classify(self, examples, using_best=False):
+	def classify(self, examples):#, using_best=False):
 		# This classifies a list of examples
-		if using_best == True:
+		if examples == test_set:
+			self.sess = tf.Session()
+			self.sess.run(self.init)
 			self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
 		premise_vectors = np.vstack([example['sentence1_binary_parse_index_sequence'] for example in examples])
 		hypothesis_vectors = np.vstack([example['sentence2_binary_parse_index_sequence'] for example in examples])
@@ -195,7 +200,20 @@ class CBOWClassifier:
 		return np.argmax(logits, axis=1)
 
 
-classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
+'''classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
 classifier.train(training_set, dev_set)
 
-logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify(using_best=True), test_set)))
+logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
+'''
+
+classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
+
+# Now either train the model and then run it on the test set or just load the best checkpoint and get accuracy on the test set. Default setting is to train the model.
+test = parameters.train_or_test()
+
+if test == False:
+	classifier.train(training_set, dev_set)
+	logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
+else:
+	logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
+
