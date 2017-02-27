@@ -73,7 +73,7 @@ class CBOWClassifier:
 		h_mul = premise_rep * hypothesis_rep
 
 		### MLP HERE (without dropout)
-		mlp_input = tf.concat(1, [premise_rep, hypothesis_rep, h_diff, h_mul])
+		mlp_input = tf.concat([premise_rep, hypothesis_rep, h_diff, h_mul], 1)
 		h_1 = tf.nn.relu(tf.matmul(mlp_input, self.W_0) + self.b_0)
 		h_2 = tf.nn.relu(tf.matmul(h_1, self.W_1) + self.b_1)
 		h_3 = tf.nn.relu(tf.matmul(h_2, self.W_2) + self.b_2)
@@ -83,7 +83,7 @@ class CBOWClassifier:
 		self.logits = tf.matmul(h_drop, self.W_cl) + self.b_cl
 
 		# Define the cost function
-		self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, self.y))
+		self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y))
 
 		# Perform gradient descent
 		self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.total_cost)
