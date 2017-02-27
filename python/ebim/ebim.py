@@ -7,7 +7,13 @@ from util.evaluate import evaluate_classifier
 
 FIXED_PARAMETERS = parameters.load_parameters()
 
-logger = logger.Logger(os.path.join(FIXED_PARAMETERS["log_path"], "ebim") + ".log")
+modname = FIXED_PARAMETERS["model_name"]
+logpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".log"
+logger = logger.Logger(logpath)
+
+# Print fixed parameters, only print if this is a new log file (don't need repeated information if we're picking up from an old checkpoint/log file)
+if os.path.exists(logpath) == False:
+    logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 
 training_set = load_nli_data(FIXED_PARAMETERS["training_data_path"])
 dev_set = load_nli_data(FIXED_PARAMETERS["dev_data_path"])
@@ -15,7 +21,6 @@ test_set = load_nli_data(FIXED_PARAMETERS["test_data_path"])
 
 indices_to_words, word_indices = sentences_to_padded_index_sequences([training_set, dev_set, test_set])
 loaded_embeddings = loadEmebdding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
-
 
 class EBIMClassifier:
     def __init__(self, vocab_size, seq_length):
@@ -162,7 +167,6 @@ class EBIMClassifier:
         for i in range(len(premise_list_bi)):
             scores_i_list = []
             for j in range(len(hypothesis_list_bi)):
-                #score_ij = tf.matmul(tf.transpose(premise_list_bi[i]), hypothesis_list_bi[j])
                 score_ij = tf.reduce_sum(tf.mul(premise_list_bi[i], hypothesis_list_bi[i]), 1, keep_dims=True)
                 scores_i_list.append(score_ij)
             scores_i = tf.pack(scores_i_list, axis=1)
@@ -217,11 +221,9 @@ class EBIMClassifier:
         v1_steps_list = {}
         v1_h_prev = {}
         v1_c_prev = {}
-        #v1_steps = {}
         v2_steps_list = {}
         v2_h_prev = {}
         v2_c_prev = {}
-        #v2_steps = {}
 
         for name in ['f2', 'b2']:
             v1_steps_list[name] = []
@@ -239,9 +241,6 @@ class EBIMClassifier:
             v2_h_prev['f2'], v2_c_prev['f2'] = lstm(m_b[t], v2_h_prev['f2'], v2_c_prev['f2'], 'f2')
             v2_steps_list['f2'].append(v2_h_prev['f2'])
 
-        #v1_steps['f2'] = tf.pack(v1_steps_list['f2'], axis=1)    
-        #v2_steps['f2'] = tf.pack(v2_steps_list['f2'], axis=1)
-
         # Unroll BACKWARD pass of LSTMs for both composition layers
         for t in range(self.sequence_length-1, -1, -1):
             v1_h_prev['b2'], v1_c_prev['b2'] = lstm(m_a[t], v1_h_prev['b2'], v1_c_prev['b2'], 'b2')
@@ -249,15 +248,6 @@ class EBIMClassifier:
 
             v2_h_prev['b2'], v2_c_prev['b2'] = lstm(m_b[t], v2_h_prev['b2'], v2_c_prev['b2'], 'b2')
             v2_steps_list['b2'].append(v2_h_prev['b2'])
-
-        #v1_steps['b2'] = tf.pack(v1_steps_list['b2'], axis=1) #?need?
-        #v2_steps['b2'] = tf.pack(v2_steps_list['b2'], axis=1) #?need?
-
-        #v1_list_bi = tf.concat(1, [v1_steps_list['f2'], v1_steps_list['b2']]) 
-        #v2_list_bi = tf.concat(1, [v2_steps_list['f2'], v2_steps_list['b2']]) 
-
-        #v1_steps_bi = tf.concat(1, [v1_steps['f2'], v1_steps['b2']]) #?need?
-        #v2_steps_bi = tf.concat(1, [v2_steps['f2'], v2_steps['b2']]) #?need?
 
         v1_list_bi = []
         v2_list_bi = []
@@ -281,6 +271,11 @@ class EBIMClassifier:
         v_2_max = tf.reduce_max(v2_steps_bi, 1)
 
         v = tf.concat(1, [v_1_ave, v_2_ave, v_1_max, v_2_max])
+
+        ### TreeLSTM
+        '''
+        TODO: Build pseudo-treeLSTM and run it through all subsequent functions 
+        '''
 
         # MLP layer
         h_mlp = tf.nn.tanh(tf.matmul(v, self.W_mlp) + self.b_mlp)
@@ -310,15 +305,26 @@ class EBIMClassifier:
             return premise_vectors, hypothesis_vectors, labels
         
         self.sess = tf.Session()
-        
         self.sess.run(self.init)
+
+        # Restore best-checkpoint if it exists
+        ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
+        if os.path.isfile(ckpt_file):
+            self.saver.restore(self.sess, ckpt_file)
+            #print("Model restored from file: %s" % ckpt_file)
+            logger.Log("Model restored from file: %s" % ckpt_file)
+
         self.step = 1
         self.epoch = 0
+        self.best_dev_acc = 0.
+        self.best_train_acc = 0.
+        self.last_train_acc = [.001, .001, .001, .001, .001]
 
         print 'Training...'
 
         # Training cycle
-        for epoch in range(self.training_epochs):
+        while True:
+        #for epoch in range(self.training_epochs):
             random.shuffle(training_data)
             avg_cost = 0.
             total_batch = int(len(training_data) / self.batch_size)
@@ -337,11 +343,20 @@ class EBIMClassifier:
                                                 self.y: minibatch_labels, 
                                                 self.keep_rate_ph: self.keep_rate})
 
-                # Since a single epoch can take a  ages, we'll print accuracy every 250 steps as well as every epoch
+                # Since a single epoch can take a  ages, we'll print accuracy every
+                # 250 steps as well as every epoch
                 if self.step % self.display_step_freq == 0:
-                    '''print "Step:", self.step, "Dev acc:", evaluate_classifier(self.classify, dev_data[:]), \
-                                                                                    "Train acc:", evaluate_classifier(self.classify, training_data[0:5000]) '''
-                    logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, evaluate_classifier(self.classify, dev_data[:]), evaluate_classifier(self.classify, training_data[0:5000])))
+                    dev_acc = evaluate_classifier(self.classify, dev_data)
+                    train_acc = evaluate_classifier(self.classify, training_data[0:5000])
+                    logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, dev_acc, train_acc))
+
+                if self.step % 10000 == 0:
+                    self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")
+                    best_test = 100 * (1 - self.best_dev_acc / dev_acc)
+                    if best_test > 0.1:
+                        self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
+                        self.best_dev_acc = dev_acc
+                        self.best_train_acc = train_acc
                                   
                 self.step += 1
 
@@ -350,14 +365,29 @@ class EBIMClassifier:
                                 
             # Display some statistics about the step
             # Evaluating only one batch worth of data -- simplifies implementation slightly
-            #if (epoch+1) % self.display_epoch_freq == 0:
             if self.epoch % self.display_epoch_freq == 0:
-                #print "Epoch:", (epoch+1), "Cost:", avg_cost
                 logger.Log("Epoch: %i\t Cost: %f" %(epoch+1, avg_cost))
+            
             self.epoch += 1 
+            self.last_train_acc[(self.epoch % 5) - 1] = train_acc
+
+            # Early stopping
+            termination_test = 100 * (self.best_dev_acc / dev_acc - 1)
+            progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
+
+            if ((progress < 0.1) or 
+                (self.epoch > 1000) or 
+                (termination_test > 1.0)):
+                logger.Log("Best dev accuracy: %s" %(self.best_dev_acc))
+                logger.Log("Train accuracy: %s" %(self.best_train_acc))
+                break 
     
     def classify(self, examples):
         # This classifies a list of examples
+        if examples == test_set:
+            self.sess = tf.Session()
+            self.sess.run(self.init)
+            self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
         premise_vectors = np.vstack([example['sentence1_binary_parse_index_sequence'] for example in examples])
         hypothesis_vectors = np.vstack([example['sentence2_binary_parse_index_sequence'] for example in examples])
         logits = self.sess.run(self.logits, feed_dict={self.premise_x: premise_vectors,
@@ -367,7 +397,13 @@ class EBIMClassifier:
 
 
 classifier = EBIMClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
-classifier.train(training_set[:1000], dev_set[:1000])
 
-print "Test acc:", evaluate_classifier(classifier.classify, test_set)
+# Now either train the model and then run it on the test set or just load the best checkpoint and get accuracy on the test set. Default setting is to train the model.
+test = parameters.train_or_test()
+
+if test == False:
+    classifier.train(training_set, dev_set)
+    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
+else:
+    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
 

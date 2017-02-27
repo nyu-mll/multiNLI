@@ -153,7 +153,6 @@ class CBOWClassifier:
 					best_test = 100 * (1 - self.best_dev_acc / dev_acc)
 					if best_test > 0.1:
 						self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
-						#self.best_epoch = self.epoch
 						self.best_dev_acc = dev_acc
 						self.best_train_acc = train_acc
 								  
@@ -165,7 +164,6 @@ class CBOWClassifier:
 			# Display some statistics about the step
 			# Evaluating only one batch worth of data -- simplifies implementation slightly
 			if self.epoch % self.display_epoch_freq == 0:
-				#print "Epoch:", (epoch+1), "Cost:", avg_cost
 				logger.Log("Epoch: %i\t Cost: %f" %(self.epoch+1, avg_cost))
 
 			self.epoch += 1
