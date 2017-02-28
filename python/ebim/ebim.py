@@ -295,6 +295,7 @@ class EBIMClassifier:
         # tf things: initialize variables and create placeholder for session
         self.init = tf.initialize_all_variables()
         self.sess = None
+        self.saver = tf.train.Saver()
     
     def train(self, training_data, dev_data):
         def get_minibatch(dataset, start_index, end_index):
@@ -309,9 +310,8 @@ class EBIMClassifier:
 
         # Restore best-checkpoint if it exists
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
-        if os.path.isfile(ckpt_file):
+        if os.path.isfile(ckpt_file + ".meta"):
             self.saver.restore(self.sess, ckpt_file)
-            #print("Model restored from file: %s" % ckpt_file)
             logger.Log("Model restored from file: %s" % ckpt_file)
 
         self.step = 1

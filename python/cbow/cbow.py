@@ -83,7 +83,7 @@ class CBOWClassifier:
 		self.logits = tf.matmul(h_drop, self.W_cl) + self.b_cl
 
 		# Define the cost function
-		self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y))
+		self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.y, logits=self.logits))
 
 		# Perform gradient descent
 		self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.total_cost)
@@ -106,9 +106,8 @@ class CBOWClassifier:
 
 		# Restore best-checkpoint if it exists
 		ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
-		if os.path.isfile(ckpt_file):
+		if os.path.isfile(ckpt_file + ".meta"):
 			self.saver.restore(self.sess, ckpt_file)
-			#print("Model restored from file: %s" % ckpt_file)
 			logger.Log("Model restored from file: %s" % ckpt_file)
 
 		self.step = 1
@@ -175,7 +174,7 @@ class CBOWClassifier:
 
 			if ((progress < 0.1) or 
 				(self.epoch > 1000) or 
-				(termination_test > 1.0)):
+				(termination_test > 4.0)):
 				logger.Log("Best dev accuracy: %s" %(self.best_dev_acc))
 				logger.Log("Train accuracy: %s" %(self.best_train_acc))
 				break 
