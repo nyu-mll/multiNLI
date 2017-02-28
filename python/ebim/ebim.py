@@ -81,7 +81,7 @@ class EBIMClassifier:
         
         # Define the LSTM function
         def lstm(emb, h_prev, c_prev, name): #removed name entry from function
-            emb_h_prev = tf.concat(1, [emb, h_prev], name=name + '_emb_h_prev')
+            emb_h_prev = tf.concat([emb, h_prev], 1, name=name + '_emb_h_prev')
             f_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_f[name])  + self.b_f[name])
             i_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_i[name])  + self.b_i[name])
             c_tilde = tf.nn.tanh(tf.matmul(emb_h_prev, self.W_c[name])  + self.b_c[name])
@@ -96,10 +96,10 @@ class EBIMClassifier:
             return lstm(emb_drop, h_prev, c_prev, name)
 
         # Split up the inputs into individual tensors
-        self.x_premise_slices = tf.split(1, self.sequence_length, self.premise_x)
-        self.x_hypothesis_slices = tf.split(1, self.sequence_length, self.hypothesis_x)
+        self.x_premise_slices = tf.split(self.premise_x, self.sequence_length, 1)
+        self.x_hypothesis_slices = tf.split(self.hypothesis_x, self.sequence_length, 1)
         
-        self.h_zero = tf.zeros(tf.pack([tf.shape(self.premise_x)[0], self.dim]))
+        self.h_zero = tf.zeros(tf.stack([tf.shape(self.premise_x)[0], self.dim]))
         #print "HIDDEN ZERO", self.h_zero 
 
         premise_h_prev = {}
@@ -130,8 +130,8 @@ class EBIMClassifier:
             hypothesis_h_prev['f'], hypothesis_c_prev['f'] = lstm_step(b_t, hypothesis_h_prev['f'], hypothesis_c_prev['f'], 'f')
             hypothesis_steps_list['f'].append(hypothesis_h_prev['f'])
             
-        premise_steps['f'] = tf.pack(premise_steps_list['f'], axis=1)
-        hypothesis_steps['f'] = tf.pack(hypothesis_steps_list['f'], axis=1)
+        premise_steps['f'] = tf.stack(premise_steps_list['f'], axis=1)
+        hypothesis_steps['f'] = tf.stack(hypothesis_steps_list['f'], axis=1)
 
         # Unroll BACKWARD pass of LSTMs for both sentences
         for t in range(self.sequence_length-1 , -1, -1):
@@ -147,16 +147,16 @@ class EBIMClassifier:
         hypothesis_list_bi = []
 
         for t in range(self.sequence_length):
-            premise_bi_step = tf.concat(1, [premise_steps_list['f'][t], premise_steps_list['b'][t]])
+            premise_bi_step = tf.concat([premise_steps_list['f'][t], premise_steps_list['b'][t]], 1)
             premise_list_bi.append(premise_bi_step)
-            hypothesis_bi_step = tf.concat(1, [hypothesis_steps_list['f'][t], hypothesis_steps_list['b'][t]])
+            hypothesis_bi_step = tf.concat([hypothesis_steps_list['f'][t], hypothesis_steps_list['b'][t]], 1)
             hypothesis_list_bi.append(hypothesis_bi_step) 
 
         #print "PREMISE FORWARD LIST", premise_steps_list['f']
         #print "PREMISE LIST BI", premise_list_bi
 
-        premise_steps_bi = tf.pack(premise_list_bi, axis=1)
-        hypothesis_steps_bi = tf.pack(hypothesis_list_bi, axis=1)
+        premise_steps_bi = tf.stack(premise_list_bi, axis=1)
+        hypothesis_steps_bi = tf.stack(hypothesis_list_bi, axis=1)
 
         #print "PREMISE STEPS BI, PACKED", premise_steps_bi
         
@@ -167,11 +167,11 @@ class EBIMClassifier:
         for i in range(len(premise_list_bi)):
             scores_i_list = []
             for j in range(len(hypothesis_list_bi)):
-                score_ij = tf.reduce_sum(tf.mul(premise_list_bi[i], hypothesis_list_bi[i]), 1, keep_dims=True)
+                score_ij = tf.reduce_sum(tf.multiply(premise_list_bi[i], hypothesis_list_bi[i]), 1, keep_dims=True)
                 scores_i_list.append(score_ij)
-            scores_i = tf.pack(scores_i_list, axis=1)
+            scores_i = tf.stack(scores_i_list, axis=1)
             alpha_ij = tf.nn.softmax(scores_i, dim=1)
-            a_tilde_i = tf.reduce_sum(tf.mul(alpha_ij, premise_steps_bi), 1)
+            a_tilde_i = tf.reduce_sum(tf.multiply(alpha_ij, premise_steps_bi), 1)
             premise_attn.append(a_tilde_i)
             
             scores_all.append(scores_i)
@@ -184,11 +184,11 @@ class EBIMClassifier:
         for j in range(len(hypothesis_list_bi)):
             scores_j_list = []
             for i in range(len(premise_list_bi)):
-                score_ij = tf.unpack(scores_all[i], axis=1)[j]
+                score_ij = tf.unstack(scores_all[i], axis=1)[j]
                 scores_j_list.append(score_ij)
-            scores_j = tf.pack(scores_j_list, axis=1)
+            scores_j = tf.stack(scores_j_list, axis=1)
             beta_ij = tf.nn.softmax(scores_j, dim=1)
-            b_tilde_j = tf.reduce_sum(tf.mul(beta_ij, hypothesis_steps_bi), 1)
+            b_tilde_j = tf.reduce_sum(tf.multiply(beta_ij, hypothesis_steps_bi), 1)
             hypothesis_attn.append(b_tilde_j)
 
 
@@ -208,8 +208,8 @@ class EBIMClassifier:
             m_a_mul = premise_attn[i] * premise_list_bi[i]
             m_b_diff = hypothesis_attn[i] - hypothesis_list_bi[i]
             m_b_mul = hypothesis_attn[i] * hypothesis_list_bi[i]
-            m_a_i = tf.concat(1, [premise_list_bi[i], premise_attn[i], m_a_diff, m_a_mul])
-            m_b_i = tf.concat(1, [hypothesis_list_bi[i], hypothesis_attn[i], m_b_diff, m_b_mul])
+            m_a_i = tf.concat([premise_list_bi[i], premise_attn[i], m_a_diff, m_a_mul], 1)
+            m_b_i = tf.concat([hypothesis_list_bi[i], hypothesis_attn[i], m_b_diff, m_b_mul], 1)
             m_a.append(m_a_i)
             m_b.append(m_b_i)
 
@@ -253,13 +253,13 @@ class EBIMClassifier:
         v2_list_bi = []
 
         for t in range(self.sequence_length):
-            v1_bi_step = tf.concat(1, [v1_steps_list['f2'][t], v1_steps_list['b2'][t]])
+            v1_bi_step = tf.concat([v1_steps_list['f2'][t], v1_steps_list['b2'][t]], 1)
             v1_list_bi.append(v1_bi_step)
-            v2_bi_step = tf.concat(1, [v2_steps_list['f2'][t], v2_steps_list['b2'][t]])
+            v2_bi_step = tf.concat([v2_steps_list['f2'][t], v2_steps_list['b2'][t]], 1)
             v2_list_bi.append(v2_bi_step)
 
-        v1_steps_bi = tf.pack(v1_list_bi, axis=1)
-        v2_steps_bi = tf.pack(v2_list_bi, axis=1)
+        v1_steps_bi = tf.stack(v1_list_bi, axis=1)
+        v2_steps_bi = tf.stack(v2_list_bi, axis=1)
 
         #print "V1 STEPS BI, PACKED", v1_steps_bi
 
@@ -270,7 +270,7 @@ class EBIMClassifier:
         v_1_max = tf.reduce_max(v1_steps_bi, 1)
         v_2_max = tf.reduce_max(v2_steps_bi, 1)
 
-        v = tf.concat(1, [v_1_ave, v_2_ave, v_1_max, v_2_max])
+        v = tf.concat([v_1_ave, v_2_ave, v_1_max, v_2_max], 1)
 
         ### TreeLSTM
         '''
@@ -287,7 +287,7 @@ class EBIMClassifier:
         self.logits = tf.matmul(h_drop, self.W_cl) + self.b_cl
 
         # Define the cost function
-        self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, self.y))
+        self.total_cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.y, logits=self.logits))
 
         # Perform gradient descent with Adam
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.total_cost)
