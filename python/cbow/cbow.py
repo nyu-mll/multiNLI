@@ -36,14 +36,12 @@ class CBOWClassifier:
 		self.sequence_length = FIXED_PARAMETERS["seq_length"]
 
 		## Define placeholders
-		self.premise_x = tf.placeholder(tf.int32, [None, self.sequence_length])
-		self.hypothesis_x = tf.placeholder(tf.int32, [None, self.sequence_length])
+		self.premise_emb = tf.placeholder(tf.float32, [None, self.sequence_length, self.embedding_dim])
+		self.hypothesis_emb = tf.placeholder(tf.float32, [None, self.sequence_length, self.embedding_dim])
 		self.y = tf.placeholder(tf.int32, [None])
 		self.keep_rate_ph = tf.placeholder(tf.float32, [])
 
-
 		## Define remaning parameters 
-		self.E = tf.Variable(loaded_embeddings, trainable=True, name="emb")
 
 		self.W_0 = tf.Variable(tf.random_normal([self.embedding_dim * 4, self.dim], stddev=0.1), name="w0")
 		self.b_0 = tf.Variable(tf.random_normal([self.dim], stddev=0.1), name="b0")
@@ -57,13 +55,8 @@ class CBOWClassifier:
 		self.W_cl = tf.Variable(tf.random_normal([self.dim, 3], stddev=0.1), name="wcl")
 		self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1), name="bcl")
 
-
-		## Calculate representaitons by CBOW method
-		emb_premise = tf.nn.embedding_lookup(self.E, self.premise_x) 
-		emb_premise_drop = tf.nn.dropout(emb_premise, self.keep_rate_ph)
-	
-		emb_hypothesis = tf.nn.embedding_lookup(self.E, self.hypothesis_x)
-		emb_hypothesis_drop = tf.nn.dropout(emb_hypothesis, self.keep_rate_ph)
+		emb_premise_drop = tf.nn.dropout(self.premise_emb, self.keep_rate_ph)
+		emb_hypothesis_drop = tf.nn.dropout(self.hypothesis_emb, self.keep_rate_ph)
 
 		premise_rep = tf.reduce_sum(emb_premise_drop, 1)
 		hypothesis_rep = tf.reduce_sum(emb_hypothesis_drop, 1)
@@ -134,11 +127,14 @@ class CBOWClassifier:
 				minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = get_minibatch(
 					training_data, self.batch_size * i, self.batch_size * (i + 1))
 
+				prem_emb = loaded_embeddings.take(minibatch_premise_vectors, 0)
+				hyp_emb = loaded_embeddings.take(minibatch_hypothesis_vectors, 0)
+
 				# Run the optimizer to take a gradient step, and also fetch the value of the 
 				# cost function for logging
 				_, c = self.sess.run([self.optimizer, self.total_cost], 
-									 feed_dict={self.premise_x: minibatch_premise_vectors,
-												self.hypothesis_x: minibatch_hypothesis_vectors,
+									 feed_dict={self.premise_emb: prem_emb,
+												self.hypothesis_emb: hyp_emb,
 												self.y: minibatch_labels,
 												self.keep_rate_ph: self.keep_rate})
 
@@ -187,8 +183,11 @@ class CBOWClassifier:
 			self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
 		premise_vectors = np.vstack([example['sentence1_binary_parse_index_sequence'] for example in examples])
 		hypothesis_vectors = np.vstack([example['sentence2_binary_parse_index_sequence'] for example in examples])
-		logits = self.sess.run(self.logits, feed_dict={self.premise_x: premise_vectors,
-													   self.hypothesis_x: hypothesis_vectors,
+
+		prem_emb = loaded_embeddings.take(premise_vectors, 0)
+		hyp_emb = loaded_embeddings.take(hypothesis_vectors, 0)
+		logits = self.sess.run(self.logits, feed_dict={self.premise_emb: prem_emb,
+													   self.hypothesis_emb: hyp_emb,
 													   self.keep_rate_ph: 1.0})
 		return np.argmax(logits, axis=1)
 
