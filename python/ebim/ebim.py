@@ -293,7 +293,7 @@ class EBIMClassifier:
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.total_cost)
 
         # tf things: initialize variables and create placeholder for session
-        self.init = tf.initialize_all_variables()
+        self.init = tf.global_variables_initializer()
         self.sess = None
         self.saver = tf.train.Saver()
     
