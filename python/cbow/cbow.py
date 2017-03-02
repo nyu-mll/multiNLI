@@ -88,7 +88,7 @@ class CBOWClassifier:
 		# Perform gradient descent
 		self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.total_cost)
 
-		# tf things: initialize variables abd create palceholder for sesson
+		# tf things: initialize variables abd create placeholder for session
 		self.init = tf.initialize_all_variables()
 		self.sess = None
 		self.saver = tf.train.Saver()
@@ -104,23 +104,27 @@ class CBOWClassifier:
 		self.sess = tf.Session()
 		self.sess.run(self.init)
 
+		self.best_dev_acc = 0.
+		self.best_train_acc = 0.
+		self.last_train_acc = [.001, .001, .001, .001, .001]
+		self.best_epoch = 0
+
 		# Restore best-checkpoint if it exists
 		ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
 		if os.path.isfile(ckpt_file + ".meta"):
+			if os.path.isfile(ckpt_file + "_best.meta"):
+				self.saver.restore(self.sess, (ckpt_file + "_best"))
+				self.best_dev_acc = evaluate_classifier(self.classify, dev_data)
+				self.best_train_acc = evaluate_classifier(self.classify, training_data[0:5000])
+				logger.Log("Restored best dev acc: %f\t Restored best train acc: %f" %(self.best_dev_acc, self.best_train_acc))
 			self.saver.restore(self.sess, ckpt_file)
 			logger.Log("Model restored from file: %s" % ckpt_file)
 
 		self.step = 1
 		self.epoch = 0
 
-		#print 'Training...'
-		logger.Log("Training...")
-
 		### Training Cycle
-
-		self.best_dev_acc = 0.
-		self.best_train_acc = 0.
-		self.last_train_acc = [.001, .001, .001, .001, .001]
+		logger.Log("Training...")
 
 		while True:
 		#for epoch in range(self.training_epochs):
@@ -154,6 +158,7 @@ class CBOWClassifier:
 						self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
 						self.best_dev_acc = dev_acc
 						self.best_train_acc = train_acc
+						self.best_epoch = self.epoch
 								  
 				self.step += 1
 
@@ -169,15 +174,20 @@ class CBOWClassifier:
 			self.last_train_acc[(self.epoch % 5) - 1] = train_acc
 
 			# Early stopping
-			termination_test = 100 * (self.best_dev_acc / dev_acc - 1)
+			#termination_test = 100 * (self.best_dev_acc / dev_acc - 1)
 			progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
 
-			if ((progress < 0.1) or 
-				(self.epoch > 1000) or 
-				(termination_test > 4.0)):
+			#if ((progress < 0.1) or 
+			#	(self.epoch < self.best_epoch + 10) or 
+			#	(termination_test > 4.0)):
+			#	logger.Log("Best dev accuracy: %s" %(self.best_dev_acc))
+			#	logger.Log("Train accuracy: %s" %(self.best_train_acc))
+			#	break
+
+			if (progress < 0.1) or (self.epoch > self.best_epoch + 10):
 				logger.Log("Best dev accuracy: %s" %(self.best_dev_acc))
 				logger.Log("Train accuracy: %s" %(self.best_train_acc))
-				break 
+				break
 	
 	def classify(self, examples):#, using_best=False):
 		# This classifies a list of examples
@@ -203,4 +213,3 @@ if test == False:
 	logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
 else:
 	logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
-
