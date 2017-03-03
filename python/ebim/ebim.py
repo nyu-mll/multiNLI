@@ -28,7 +28,7 @@ class EBIMClassifier:
         self.learning_rate = 0.0004
         self.training_epochs = 100
         self.display_epoch_freq = 1
-        self.display_step_freq = 250
+        self.display_step_freq = 50
         self.embedding_dim = FIXED_PARAMETERS["word_embedding_dim"]
         self.dim = FIXED_PARAMETERS["hidden_embedding_dim"]
         self.batch_size = FIXED_PARAMETERS["batch_size"]
@@ -356,7 +356,7 @@ class EBIMClassifier:
                     train_acc = evaluate_classifier(self.classify, training_data[0:5000])
                     logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, dev_acc, train_acc))
 
-                if self.step % 10000 == 0:
+                if self.step % 1000 == 0:
                     self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")
                     best_test = 100 * (1 - self.best_dev_acc / dev_acc)
                     if best_test > 0.1:

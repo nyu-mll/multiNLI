@@ -1,10 +1,12 @@
-#!/bin/bash
+!/bin/bash
 
-#SBATCH --mem=12000
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:1
+#SBATCH --mem=16000
 #SBATCH -t24:00:00
 
 # Make sure we have access to HPC-managed libraries.
-module load python/intel/2.7.12 
+module load tensorflow/python2.7/20170218
 
 # Run.
-PYTHONPATH=. python ebim/ebim.py ebim
+PYTHONPATH=$PYTHONPATH:. python ebim/ebim.py ebim-100d

@@ -26,6 +26,7 @@ class CBOWClassifier:
 	def __init__(self, vocab_size, seq_length):
 		## Define hyperparameters
 		self.learning_rate = FIXED_PARAMETERS["learning_rate"]
+		self.learning_rate = .001
 		#self.training_epochs = 100
 		self.display_epoch_freq = 1
 		self.display_step_freq = 250
