@@ -308,6 +308,11 @@ class EBIMClassifier:
         self.sess = tf.Session()
         self.sess.run(self.init)
 
+        self.best_dev_acc = 0.
+        self.best_train_acc = 0.
+        self.last_train_acc = [.001, .001, .001, .001, .001]
+        self.best_epoch = 0
+
         # Restore best-checkpoint if it exists
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
         if os.path.isfile(ckpt_file + ".meta"):
@@ -321,10 +326,6 @@ class EBIMClassifier:
 
         self.step = 1
         self.epoch = 0
-        self.best_dev_acc = 0.
-        self.best_train_acc = 0.
-        self.last_train_acc = [.001, .001, .001, .001, .001]
-        self.best_epoch = 0
 
         ### Training cycle
         print 'Training...'
@@ -373,7 +374,7 @@ class EBIMClassifier:
             # Display some statistics about the step
             # Evaluating only one batch worth of data -- simplifies implementation slightly
             if self.epoch % self.display_epoch_freq == 0:
-                logger.Log("Epoch: %i\t Cost: %f" %(epoch+1, avg_cost))
+                logger.Log("Epoch: %i\t Cost: %f" %(self.epoch+1, avg_cost))
             
             self.epoch += 1 
             self.last_train_acc[(self.epoch % 5) - 1] = train_acc

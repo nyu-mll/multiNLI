@@ -94,13 +94,15 @@ class CBOWClassifier:
 		self.sess = None
 		self.saver = tf.train.Saver()
 	
-	def train(self, training_data, dev_data):
-		def get_minibatch(dataset, start_index, end_index):
+	def get_minibatch(self, dataset, start_index, end_index):
 			indices = range(start_index, end_index)
 			premise_vectors = np.vstack([dataset[i]['sentence1_binary_parse_index_sequence'] for i in indices])
 			hypothesis_vectors = np.vstack([dataset[i]['sentence2_binary_parse_index_sequence'] for i in indices])
 			labels = [dataset[i]['label'] for i in indices]
 			return premise_vectors, hypothesis_vectors, labels
+
+	
+	def train(self, training_data, dev_data):
 
 		self.sess = tf.Session()
 		self.sess.run(self.init)
@@ -115,8 +117,8 @@ class CBOWClassifier:
 		if os.path.isfile(ckpt_file + ".meta"):
 			if os.path.isfile(ckpt_file + "_best.meta"):
 				self.saver.restore(self.sess, (ckpt_file + "_best"))
-				self.best_dev_acc = evaluate_classifier(self.classify, dev_data)
-				self.best_train_acc = evaluate_classifier(self.classify, training_data[0:5000])
+				self.best_dev_acc = evaluate_classifier(self.classify, dev_data, self.batch_size)
+				self.best_train_acc = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
 				logger.Log("Restored best dev acc: %f\t Restored best train acc: %f" %(self.best_dev_acc, self.best_train_acc))
 			self.saver.restore(self.sess, ckpt_file)
 			logger.Log("Model restored from file: %s" % ckpt_file)
@@ -136,8 +138,7 @@ class CBOWClassifier:
 			# Loop over all batches in epoch
 			for i in range(total_batch):
 				# Assemble a minibatch of the next B examples
-				minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = get_minibatch(
-					training_data, self.batch_size * i, self.batch_size * (i + 1))
+				minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = self.get_minibatch(training_data, self.batch_size * i,  self.batch_size * (i + 1))
 
 				# Run the optimizer to take a gradient step, and also fetch the value of the 
 				# cost function for logging
@@ -148,8 +149,8 @@ class CBOWClassifier:
 												self.keep_rate_ph: self.keep_rate})
 
 				if self.step % self.display_step_freq == 0:
-					dev_acc = evaluate_classifier(self.classify, dev_data)
-					train_acc = evaluate_classifier(self.classify, training_data[0:5000])
+					dev_acc = evaluate_classifier(self.classify, dev_data, self.batch_size)
+					train_acc = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
 					logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, dev_acc, train_acc))
 
 				if self.step % 10000 == 0:
@@ -178,30 +179,26 @@ class CBOWClassifier:
 			#termination_test = 100 * (self.best_dev_acc / dev_acc - 1)
 			progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
 
-			#if ((progress < 0.1) or 
-			#	(self.epoch < self.best_epoch + 10) or 
-			#	(termination_test > 4.0)):
-			#	logger.Log("Best dev accuracy: %s" %(self.best_dev_acc))
-			#	logger.Log("Train accuracy: %s" %(self.best_train_acc))
-			#	break
-
 			if (progress < 0.1) or (self.epoch > self.best_epoch + 10):
 				logger.Log("Best dev accuracy: %s" %(self.best_dev_acc))
 				logger.Log("Train accuracy: %s" %(self.best_train_acc))
 				break
 	
-	def classify(self, examples):#, using_best=False):
-		# This classifies a list of examples
+	def classify(self, examples):
+        # This classifies a list of examples
 		if examples == test_set:
-			self.sess = tf.Session()
-			self.sess.run(self.init)
-			self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
-		premise_vectors = np.vstack([example['sentence1_binary_parse_index_sequence'] for example in examples])
-		hypothesis_vectors = np.vstack([example['sentence2_binary_parse_index_sequence'] for example in examples])
-		logits = self.sess.run(self.logits, feed_dict={self.premise_x: premise_vectors,
-													   self.hypothesis_x: hypothesis_vectors,
-													   self.keep_rate_ph: 1.0})
-		return np.argmax(logits, axis=1)
+		    self.sess = tf.Session()
+		    self.sess.run(self.init)
+		    self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
+
+		total_batch = int(len(examples) / self.batch_size)
+		logits = np.empty(3)
+		for i in range(total_batch):
+		    minibatch_premise_vectors, minibatch_hypothesis_vectors,minibatch_labels = self.get_minibatch(examples, self.batch_size * i, self.batch_size * (i + 1))
+		    logit = self.sess.run(self.logits, feed_dict={self.premise_x:minibatch_premise_vectors, self.hypothesis_x: minibatch_hypothesis_vectors, self.keep_rate_ph: 1.0})
+		    logits = np.vstack([logits, logit])
+
+		return np.argmax(logits[1:], axis=1)
 
 
 classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
@@ -211,6 +208,6 @@ test = parameters.train_or_test()
 
 if test == False:
 	classifier.train(training_set, dev_set)
-	logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
+	logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set, FIXED_PARAMETERS["batch_size"])))
 else:
-	logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
+	logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set, FIXED_PARAMETERS["batch_size"])))
