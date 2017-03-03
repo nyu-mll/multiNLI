@@ -296,36 +296,36 @@ class EBIMClassifier:
         self.init = tf.global_variables_initializer()
         self.sess = None
         self.saver = tf.train.Saver()
-    
-    def train(self, training_data, dev_data):
-        def get_minibatch(dataset, start_index, end_index):
+
+    def get_minibatch(self, dataset, start_index, end_index):
             indices = range(start_index, end_index)
             premise_vectors = np.vstack([dataset[i]['sentence1_binary_parse_index_sequence'] for i in indices])
             hypothesis_vectors = np.vstack([dataset[i]['sentence2_binary_parse_index_sequence'] for i in indices])
             labels = [dataset[i]['label'] for i in indices]
             return premise_vectors, hypothesis_vectors, labels
-        
+
+    
+    def train(self, training_data, dev_data):        
         self.sess = tf.Session()
         self.sess.run(self.init)
-
-        self.best_dev_acc = 0.
-        self.best_train_acc = 0.
-        self.last_train_acc = [.001, .001, .001, .001, .001]
-        self.best_epoch = 0
 
         # Restore best-checkpoint if it exists
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
         if os.path.isfile(ckpt_file + ".meta"):
             if os.path.isfile(ckpt_file + "_best.meta"):
                 self.saver.restore(self.sess, (ckpt_file + "_best"))
-                self.best_dev_acc = evaluate_classifier(self.classify, dev_data)
-                self.best_train_acc = evaluate_classifier(self.classify, training_data[0:5000])
+                self.best_dev_acc = evaluate_classifier(self.classify, dev_data, self.batch_size)
+                self.best_train_acc = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
                 logger.Log("Restored best dev acc: %f\t Restored best train acc: %f" %(self.best_dev_acc, self.best_train_acc))
             self.saver.restore(self.sess, ckpt_file)
             logger.Log("Model restored from file: %s" % ckpt_file)
 
         self.step = 1
         self.epoch = 0
+        self.best_dev_acc = 0.
+        self.best_train_acc = 0.
+        self.last_train_acc = [.001, .001, .001, .001, .001]
+        self.best_epoch = 0
 
         ### Training cycle
         print 'Training...'
@@ -339,8 +339,7 @@ class EBIMClassifier:
             # Loop over all batches in epoch
             for i in range(total_batch):
                 # Assemble a minibatch of the next B examples
-                minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = get_minibatch(
-                    training_data, self.batch_size * i, self.batch_size * (i + 1))
+                minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = self.get_minibatch(training_data, self.batch_size * i, self.batch_size * (i + 1))
 
                 # Run the optimizer to take a gradient step, and also fetch the value of the 
                 # cost function for logging
@@ -353,8 +352,8 @@ class EBIMClassifier:
                 # Since a single epoch can take a  ages, we'll print accuracy every
                 # 250 steps as well as every epoch
                 if self.step % self.display_step_freq == 0:
-                    dev_acc = evaluate_classifier(self.classify, dev_data)
-                    train_acc = evaluate_classifier(self.classify, training_data[0:5000])
+                    dev_acc = evaluate_classifier(self.classify, dev_data, self.batch_size)
+                    train_acc = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
                     logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f" %(self.step, dev_acc, train_acc))
 
                 if self.step % 1000 == 0:
@@ -374,7 +373,7 @@ class EBIMClassifier:
             # Display some statistics about the step
             # Evaluating only one batch worth of data -- simplifies implementation slightly
             if self.epoch % self.display_epoch_freq == 0:
-                logger.Log("Epoch: %i\t Cost: %f" %(self.epoch+1, avg_cost))
+                logger.Log("Epoch: %i\t Cost: %f" %(epoch+1, avg_cost))
             
             self.epoch += 1 
             self.last_train_acc[(self.epoch % 5) - 1] = train_acc
@@ -394,12 +393,15 @@ class EBIMClassifier:
             self.sess = tf.Session()
             self.sess.run(self.init)
             self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
-        premise_vectors = np.vstack([example['sentence1_binary_parse_index_sequence'] for example in examples])
-        hypothesis_vectors = np.vstack([example['sentence2_binary_parse_index_sequence'] for example in examples])
-        logits = self.sess.run(self.logits, feed_dict={self.premise_x: premise_vectors,
-                                                       self.hypothesis_x: hypothesis_vectors, 
-                                                       self.keep_rate_ph: 1.0})
-        return np.argmax(logits, axis=1)
+
+        total_batch = int(len(examples) / self.batch_size)
+        logits = np.empty(3)
+        for i in range(total_batch):
+            minibatch_premise_vectors, minibatch_hypothesis_vectors,minibatch_labels = self.get_minibatch(examples, self.batch_size * i, self.batch_size * (i + 1))
+            logit = self.sess.run(self.logits, feed_dict={self.premise_x:minibatch_premise_vectors, self.hypothesis_x: minibatch_hypothesis_vectors, self.keep_rate_ph: 1.0})
+            logits = np.vstack([logits, logit])
+
+        return np.argmax(logits[1:], axis=1)
 
 
 classifier = EBIMClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
@@ -409,7 +411,7 @@ test = parameters.train_or_test()
 
 if test == False:
     classifier.train(training_set, dev_set)
-    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
+    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set, FIXED_PARAMETERS["batch_size"])))
 else:
-    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set)))
+    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set, FIXED_PARAMETERS["batch_size"])))
 
