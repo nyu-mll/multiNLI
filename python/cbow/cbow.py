@@ -11,7 +11,8 @@ modname = FIXED_PARAMETERS["model_name"]
 logpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".log"
 logger = logger.Logger(logpath)
 
-# Print fixed parameters, only print if this is a new log file (don't need repeated information if we're picking up from an old checkpoint/log file)
+# Print fixed parameters, only print if this is a new log file 
+# (don't need repeated information if we're picking up from an old checkpoint/log file)
 if os.path.exists(logpath) == False:
 	logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 
@@ -138,7 +139,8 @@ class CBOWClassifier:
 			# Loop over all batches in epoch
 			for i in range(total_batch):
 				# Assemble a minibatch of the next B examples
-				minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = self.get_minibatch(training_data, self.batch_size * i,  self.batch_size * (i + 1))
+				minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = self.get_minibatch(
+					training_data, self.batch_size * i,  self.batch_size * (i + 1))
 
 				# Run the optimizer to take a gradient step, and also fetch the value of the 
 				# cost function for logging
@@ -194,8 +196,12 @@ class CBOWClassifier:
 		total_batch = int(len(examples) / self.batch_size)
 		logits = np.empty(3)
 		for i in range(total_batch):
-		    minibatch_premise_vectors, minibatch_hypothesis_vectors,minibatch_labels = self.get_minibatch(examples, self.batch_size * i, self.batch_size * (i + 1))
-		    logit = self.sess.run(self.logits, feed_dict={self.premise_x:minibatch_premise_vectors, self.hypothesis_x: minibatch_hypothesis_vectors, self.keep_rate_ph: 1.0})
+		    minibatch_premise_vectors, minibatch_hypothesis_vectors,minibatch_labels = self.get_minibatch(
+		    	examples, self.batch_size * i, self.batch_size * (i + 1))
+		    logit = self.sess.run(self.logits, 
+		    					feed_dict={self.premise_x:minibatch_premise_vectors, 
+		    					self.hypothesis_x: minibatch_hypothesis_vectors, 
+		    					self.keep_rate_ph: 1.0})
 		    logits = np.vstack([logits, logit])
 
 		return np.argmax(logits[1:], axis=1)
@@ -203,7 +209,8 @@ class CBOWClassifier:
 
 classifier = CBOWClassifier(len(word_indices), FIXED_PARAMETERS["seq_length"])
 
-# Now either train the model and then run it on the test set or just load the best checkpoint and get accuracy on the test set. Default setting is to train the model.
+# Now either train the model and then run it on the test set or just load the best checkpoint 
+# and get accuracy on the test set. Default setting is to train the model.
 test = parameters.train_or_test()
 
 if test == False:
