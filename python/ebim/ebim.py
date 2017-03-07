@@ -30,11 +30,11 @@ class EBIMClassifier:
         self.training_epochs = 100
         self.display_epoch_freq = 1
         self.display_step_freq = 50
-        self.embedding_dim = FIXED_PARAMETERS["word_embedding_dim"]
-        self.dim = FIXED_PARAMETERS["hidden_embedding_dim"]
-        self.batch_size = FIXED_PARAMETERS["batch_size"]
-        self.keep_rate = FIXED_PARAMETERS["keep_rate"]
-        self.sequence_length = FIXED_PARAMETERS["seq_length"]
+        self.embedding_dim = FIXED_PARAMETERS["word_embedding_dim"] # 300
+        self.dim = FIXED_PARAMETERS["hidden_embedding_dim"] # 300
+        self.batch_size = FIXED_PARAMETERS["batch_size"] #32
+        self.keep_rate = FIXED_PARAMETERS["keep_rate"] # 0.5 
+        self.sequence_length = FIXED_PARAMETERS["seq_length"] # 25
 
         # Define the placeholders
         self.premise_x = tf.placeholder(tf.int32, [None, self.sequence_length])
@@ -93,7 +93,7 @@ class EBIMClassifier:
 
         def lstm_step(x, h_prev, c_prev, name):
             emb = tf.nn.embedding_lookup(self.E, x)
-            emb_drop = tf.nn.dropout(emb, self.keep_rate_ph) # Dropout applied to embeddings
+            emb_drop = tf.nn.dropout(emb, self.keep_rate_ph ) # Dropout applied to embeddings
             return lstm(emb_drop, h_prev, c_prev, name)
 
         # Split up the inputs into individual tensors
@@ -101,7 +101,6 @@ class EBIMClassifier:
         self.x_hypothesis_slices = tf.split(self.hypothesis_x, self.sequence_length, 1)
         
         self.h_zero = tf.zeros(tf.stack([tf.shape(self.premise_x)[0], self.dim]))
-        #print "HIDDEN ZERO", self.h_zero 
 
         premise_h_prev = {}
         premise_c_prev = {}
@@ -120,6 +119,18 @@ class EBIMClassifier:
             hypothesis_h_prev[name] = self.h_zero
             hypothesis_c_prev[name] = self.h_zero
             hypothesis_steps_list[name] = []
+
+        ### Get sequence length without padding. Use this sequence length as 
+        ### range for unrolling. 
+        ### We're doing left padding. So,
+        ### range(self.sequence_length - true_length, self.sequence_length)
+
+        '''def length(sequence):
+                                    used = tf.sign(tf.reduce_max(tf.abs(sequence), reduction_indices=2))
+                                    length = tf.reduce_sum(used, reduction_indices=1)
+                                    length = tf.cast(length, tf.int32)
+                                    return length'''
+
 
         # Unroll FORWARD pass of LSTMs for both sentences
         for t in range(self.sequence_length):
@@ -144,6 +155,7 @@ class EBIMClassifier:
             hypothesis_h_prev['b'], hypothesis_c_prev['b']  = lstm_step(b_t, hypothesis_h_prev['b'], hypothesis_c_prev['b'], 'b')
             hypothesis_steps_list['b'].append(hypothesis_h_prev['b'])
         
+        # Concatenate lists from forward and backward passes
         premise_list_bi = []
         hypothesis_list_bi = []
 
@@ -153,13 +165,9 @@ class EBIMClassifier:
             hypothesis_bi_step = tf.concat([hypothesis_steps_list['f'][t], hypothesis_steps_list['b'][t]], 1)
             hypothesis_list_bi.append(hypothesis_bi_step) 
 
-        #print "PREMISE FORWARD LIST", premise_steps_list['f']
-        #print "PREMISE LIST BI", premise_list_bi
-
         premise_steps_bi = tf.stack(premise_list_bi, axis=1)
         hypothesis_steps_bi = tf.stack(hypothesis_list_bi, axis=1)
 
-        #print "PREMISE STEPS BI, PACKED", premise_steps_bi
         
         ### Attention ###
 
@@ -168,36 +176,26 @@ class EBIMClassifier:
         for i in range(len(premise_list_bi)):
             scores_i_list = []
             for j in range(len(hypothesis_list_bi)):
-                score_ij = tf.reduce_sum(tf.multiply(premise_list_bi[i], hypothesis_list_bi[i]), 1, keep_dims=True)
+                score_ij = tf.reduce_sum(tf.multiply(premise_list_bi[i], hypothesis_list_bi[j]), 1, keep_dims=True)
                 scores_i_list.append(score_ij)
             scores_i = tf.stack(scores_i_list, axis=1)
-            alpha_ij = tf.nn.softmax(scores_i, dim=1)
-            a_tilde_i = tf.reduce_sum(tf.multiply(alpha_ij, premise_steps_bi), 1)
+            alpha_i = tf.nn.softmax(scores_i, dim=1)
+            a_tilde_i = tf.reduce_sum(tf.multiply(alpha_i, hypothesis_steps_bi), 1)
             premise_attn.append(a_tilde_i)
             
             scores_all.append(scores_i)
 
-        #print "ONE ALPHA", alpha_ij
-        #print "ONE A-TILDE", a_tilde_i 
-        #print "test", tf.unpack(scores_all[0], axis=1)
+        scores_stack = tf.stack(scores_all, axis=2)
 
         hypothesis_attn = []
         for j in range(len(hypothesis_list_bi)):
-            scores_j_list = []
-            for i in range(len(premise_list_bi)):
-                score_ij = tf.unstack(scores_all[i], axis=1)[j]
-                scores_j_list.append(score_ij)
-            scores_j = tf.stack(scores_j_list, axis=1)
-            beta_ij = tf.nn.softmax(scores_j, dim=1)
-            b_tilde_j = tf.reduce_sum(tf.multiply(beta_ij, hypothesis_steps_bi), 1)
+            scores_j = tf.unstack(scores_stack, axis=2)[j]
+            beta_j = tf.nn.softmax(scores_j, dim=1)
+            b_tilde_j = tf.reduce_sum(tf.multiply(beta_j, premise_steps_bi), 1)
             hypothesis_attn.append(b_tilde_j)
-
-
-        #print "SCORES ALL", scores_all
-        #print "PREM ATTN", premise_attn
-        #print "HYP ATTN", hypothesis_attn
         
-        #self.complete_attn_weights = tf.pack(alpha_kj_list, 2)
+        #self.complete_attn_weights = stack lists of alpha_is and beta_js
+
 
         ### Subcomponent Inference ###
 
@@ -214,8 +212,6 @@ class EBIMClassifier:
             m_a.append(m_a_i)
             m_b.append(m_b_i)
 
-        #print "M_b", m_b
-        #print "M_a", m_a
 
         ### Inference Composition ###
 
@@ -262,7 +258,6 @@ class EBIMClassifier:
         v1_steps_bi = tf.stack(v1_list_bi, axis=1)
         v2_steps_bi = tf.stack(v2_list_bi, axis=1)
 
-        #print "V1 STEPS BI, PACKED", v1_steps_bi
 
         ### Pooling Layer ###
 
@@ -272,6 +267,7 @@ class EBIMClassifier:
         v_2_max = tf.reduce_max(v2_steps_bi, 1)
 
         v = tf.concat([v_1_ave, v_2_ave, v_1_max, v_2_max], 1)
+
 
         ### TreeLSTM
         '''
@@ -381,7 +377,6 @@ class EBIMClassifier:
             self.last_train_acc[(self.epoch % 5) - 1] = train_acc
 
             # Early stopping
-            #termination_test = 100 * (self.best_dev_acc / dev_acc - 1)
             progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
 
             if (progress < 0.1) or (self.epoch > self.best_epoch + 10):
