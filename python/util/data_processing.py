@@ -111,6 +111,9 @@ def loadEmebdding_rand(path, word_indices):
     #k = 10000
     for i in range(0, n, n):
         emb[i:i+n] = np.random.normal(size=(n,m))
+
+    # Want embedding of <PAD> to be zeros.
+    emb[0, :] = np.zeros((1,m), dtype="float32")
     
     with open(path, 'r') as f:
         for i, line in enumerate(f):
