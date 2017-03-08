@@ -80,7 +80,7 @@ class EBIMClassifier:
         self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1))
                 
         
-        # Define the LSTM function
+        # Define the LSTM cell
         def lstm(emb, h_prev, c_prev, name): #removed name entry from function
             emb_h_prev = tf.concat([emb, h_prev], 1, name=name + '_emb_h_prev')
             f_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_f[name])  + self.b_f[name])
@@ -96,9 +96,21 @@ class EBIMClassifier:
             emb_drop = tf.nn.dropout(emb, self.keep_rate_ph ) # Dropout applied to embeddings
             return lstm(emb_drop, h_prev, c_prev, name)
 
+        # Function to find unpadded length of a sentence
+        def length(sentence):
+            populated = tf.sign(tf.abs(sentence))
+            length = tf.cast(tf.reduce_sum(populated, axis=1), tf.int32)
+            return length
+
+        prem_seq_lengths = length(self.premise_x)
+        hyp_seq_lengths = length(self.hypothesis_x)
+
         # Split up the inputs into individual tensors
         self.x_premise_slices = tf.split(self.premise_x, self.sequence_length, 1)
         self.x_hypothesis_slices = tf.split(self.hypothesis_x, self.sequence_length, 1)
+
+        self.x_premise_slices_back = tf.reverse_sequence(self.x_premise_slices, prem_seq_lengths, seq_axis=0, batch_axis=1)
+        self.x_hypothesis_slices_back = tf.reverse_sequence(self.x_hypothesis_slices, hyp_seq_lengths, seq_axis=0, batch_axis=1)
         
         self.h_zero = tf.zeros(tf.stack([tf.shape(self.premise_x)[0], self.dim]))
 
@@ -120,18 +132,6 @@ class EBIMClassifier:
             hypothesis_c_prev[name] = self.h_zero
             hypothesis_steps_list[name] = []
 
-        ### Get sequence length without padding. Use this sequence length as 
-        ### range for unrolling. 
-        ### We're doing left padding. So,
-        ### range(self.sequence_length - true_length, self.sequence_length)
-
-        '''def length(sequence):
-                                    used = tf.sign(tf.reduce_max(tf.abs(sequence), reduction_indices=2))
-                                    length = tf.reduce_sum(used, reduction_indices=1)
-                                    length = tf.cast(length, tf.int32)
-                                    return length'''
-
-
         # Unroll FORWARD pass of LSTMs for both sentences
         for t in range(self.sequence_length):
             a_t = tf.reshape(self.x_premise_slices[t], [-1])
@@ -146,36 +146,35 @@ class EBIMClassifier:
         hypothesis_steps['f'] = tf.stack(hypothesis_steps_list['f'], axis=1)
 
         # Unroll BACKWARD pass of LSTMs for both sentences
-        for t in range(self.sequence_length-1 , -1, -1):
-            a_t = tf.reshape(self.x_premise_slices[t], [-1])
+        for t in range(self.sequence_length):
+            a_t = tf.reshape(self.x_premise_slices_back[t], [-1])
             premise_h_prev['b'], premise_c_prev['b'] = lstm_step(a_t, premise_h_prev['b'], premise_c_prev['b'], 'b')
             premise_steps_list['b'].append(premise_h_prev['b'])
 
-            b_t = tf.reshape(self.x_hypothesis_slices[t], [-1])
+            b_t = tf.reshape(self.x_hypothesis_slices_back[t], [-1])
             hypothesis_h_prev['b'], hypothesis_c_prev['b']  = lstm_step(b_t, hypothesis_h_prev['b'], hypothesis_c_prev['b'], 'b')
             hypothesis_steps_list['b'].append(hypothesis_h_prev['b'])
+
+        premise_rev = tf.stack(premise_steps_list['b'], axis=1)
+        hypothesis_rev = tf.stack(hypothesis_steps_list['b'], axis=1)
+
+        premise_steps['b'] = tf.reverse_sequence(premise_rev, prem_seq_lengths, seq_axis=1, batch_axis=0)
+        hypothesis_steps['b'] = tf.reverse_sequence(hypothesis_rev, hyp_seq_lengths, seq_axis=1, batch_axis=0)
+
+        premise_steps_bi = tf.concat([premise_steps['f'], premise_steps['b']], axis=2)
+        hypothesis_steps_bi = tf.concat([hypothesis_steps['f'], hypothesis_steps['b']], axis=2)
+
+        premise_list_bi = tf.unstack(premise_steps_bi, axis=1)
+        hypothesis_list_bi = tf.unstack(hypothesis_steps_bi, axis=1)
         
-        # Concatenate lists from forward and backward passes
-        premise_list_bi = []
-        hypothesis_list_bi = []
-
-        for t in range(self.sequence_length):
-            premise_bi_step = tf.concat([premise_steps_list['f'][t], premise_steps_list['b'][t]], 1)
-            premise_list_bi.append(premise_bi_step)
-            hypothesis_bi_step = tf.concat([hypothesis_steps_list['f'][t], hypothesis_steps_list['b'][t]], 1)
-            hypothesis_list_bi.append(hypothesis_bi_step) 
-
-        premise_steps_bi = tf.stack(premise_list_bi, axis=1)
-        hypothesis_steps_bi = tf.stack(hypothesis_list_bi, axis=1)
-
         
         ### Attention ###
 
         scores_all = []
         premise_attn = []
-        for i in range(len(premise_list_bi)):
+        for i in range(self.sequence_length):
             scores_i_list = []
-            for j in range(len(hypothesis_list_bi)):
+            for j in range(self.sequence_length):
                 score_ij = tf.reduce_sum(tf.multiply(premise_list_bi[i], hypothesis_list_bi[j]), 1, keep_dims=True)
                 scores_i_list.append(score_ij)
             scores_i = tf.stack(scores_i_list, axis=1)
@@ -212,13 +211,19 @@ class EBIMClassifier:
             m_a.append(m_a_i)
             m_b.append(m_b_i)
 
+        #m_a_
+        print m_a
+        #print tf.split(m_a, self.sequence_length, 1)
 
         ### Inference Composition ###
 
         v1_steps_list = {}
+        v1_steps = {}
         v1_h_prev = {}
         v1_c_prev = {}
+
         v2_steps_list = {}
+        v2_steps = {}
         v2_h_prev = {}
         v2_c_prev = {}
 
@@ -238,25 +243,28 @@ class EBIMClassifier:
             v2_h_prev['f2'], v2_c_prev['f2'] = lstm(m_b[t], v2_h_prev['f2'], v2_c_prev['f2'], 'f2')
             v2_steps_list['f2'].append(v2_h_prev['f2'])
 
+        v1_steps['f2'] = tf.stack(v1_steps_list['f2'], axis=1)
+        v2_steps['f2'] = tf.stack(v2_steps_list['f2'], axis=1)
+
         # Unroll BACKWARD pass of LSTMs for both composition layers
-        for t in range(self.sequence_length-1, -1, -1):
-            v1_h_prev['b2'], v1_c_prev['b2'] = lstm(m_a[t], v1_h_prev['b2'], v1_c_prev['b2'], 'b2')
-            v1_steps_list['b2'].append(v1_h_prev['b2'])
-
-            v2_h_prev['b2'], v2_c_prev['b2'] = lstm(m_b[t], v2_h_prev['b2'], v2_c_prev['b2'], 'b2')
-            v2_steps_list['b2'].append(v2_h_prev['b2'])
-
-        v1_list_bi = []
-        v2_list_bi = []
+        m_a_back = tf.reverse_sequence(m_a, prem_seq_lengths, seq_axis=0, batch_axis=1)
+        m_b_back = tf.reverse_sequence(m_b, hyp_seq_lengths, seq_axis=0, batch_axis=1)
 
         for t in range(self.sequence_length):
-            v1_bi_step = tf.concat([v1_steps_list['f2'][t], v1_steps_list['b2'][t]], 1)
-            v1_list_bi.append(v1_bi_step)
-            v2_bi_step = tf.concat([v2_steps_list['f2'][t], v2_steps_list['b2'][t]], 1)
-            v2_list_bi.append(v2_bi_step)
+            v1_h_prev['b2'], v1_c_prev['b2'] = lstm(m_a_back[t], v1_h_prev['b2'], v1_c_prev['b2'], 'b2')
+            v1_steps_list['b2'].append(v1_h_prev['b2'])
 
-        v1_steps_bi = tf.stack(v1_list_bi, axis=1)
-        v2_steps_bi = tf.stack(v2_list_bi, axis=1)
+            v2_h_prev['b2'], v2_c_prev['b2'] = lstm(m_b_back[t], v2_h_prev['b2'], v2_c_prev['b2'], 'b2')
+            v2_steps_list['b2'].append(v2_h_prev['b2'])
+
+        v1_rev = tf.stack(v1_steps_list['b2'], axis=1)
+        v2_rev = tf.stack(v2_steps_list['b2'], axis=1)
+
+        v1_steps['b2'] = tf.reverse_sequence(v1_rev, prem_seq_lengths, seq_axis=1, batch_axis=0)
+        v2_steps['b2'] = tf.reverse_sequence(v2_rev, hyp_seq_lengths, seq_axis=1, batch_axis=0)
+
+        v1_steps_bi = tf.concat([v1_steps['f2'], v1_steps['b2']], axis=2)
+        v2_steps_bi = tf.concat([v2_steps['f2'], v2_steps['b2']], axis=2)
 
 
         ### Pooling Layer ###
