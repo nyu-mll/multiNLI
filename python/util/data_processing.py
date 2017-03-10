@@ -39,7 +39,7 @@ def load_nli_data(path):
 
 
 '''
-Annotate datasets with feature vectors.
+Annotate datasets with feature vectors. Adding right-sided padding. 
 '''
 def sentences_to_padded_index_sequences(datasets):
     
@@ -68,7 +68,7 @@ def sentences_to_padded_index_sequences(datasets):
 
                 token_sequence = tokenize(example[sentence])
                 padding = FIXED_PARAMETERS["seq_length"] - len(token_sequence)
-
+                
                 for i in range(FIXED_PARAMETERS["seq_length"]):
                     if i >= padding:
                         index = word_indices[token_sequence[i - padding]]
@@ -78,6 +78,16 @@ def sentences_to_padded_index_sequences(datasets):
                         #    index = word_indices[UNKNOWN]
                     else:
                         index = word_indices[PADDING]
+                        
+                for i in range(FIXED_PARAMETERS["seq_length"]):
+                    if i >= len(token_sequence):
+                        index = word_indices[PADDING]
+                    else:
+                        index = word_indices[token_sequence[i]]
+                        #if token_sequence[i] in word_indices:
+                        #    index = word_indices[token_sequence[i]]
+                        #else:
+                        #index = word_indices[UNKNOWN]
                     example[sentence + '_index_sequence'][i] = index
     
     return indices_to_words, word_indices

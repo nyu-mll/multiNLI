@@ -64,7 +64,7 @@ class MyModel(object):
 
         # Embedding lookup and dropout at embedding layer
         def lstm_emb(x, h_prev, c_prev, name):
-            emb = tf.nn.embedding_lookup(self.E, x)
+            emb = tf.nn.embedding_lookup(self.E, x) # (?, 1, dim)
             emb_drop = tf.nn.dropout(emb, self.keep_rate_ph)
             return lstm(emb_drop, h_prev, c_prev, name)
 
@@ -99,8 +99,8 @@ class MyModel(object):
             return length
 
         # Get lengths of unpadded sentences
-        prem_seq_lengths = length(self.premise_x)
-        hyp_seq_lengths = length(self.hypothesis_x)
+        self.prem_seq_lengths = length(self.premise_x)
+        self.hyp_seq_lengths = length(self.hypothesis_x)
 
 
         ### First biLSTM layer ###
@@ -109,16 +109,17 @@ class MyModel(object):
         self.x_premise_slices = tf.split(self.premise_x, self.sequence_length, 1)
         self.x_hypothesis_slices = tf.split(self.hypothesis_x, self.sequence_length, 1)
 
-        self.x_premise_slices_back = tf.reverse_sequence(self.x_premise_slices, prem_seq_lengths, seq_axis=0, batch_axis=1)
-        self.x_hypothesis_slices_back = tf.reverse_sequence(self.x_hypothesis_slices, hyp_seq_lengths, seq_axis=0, batch_axis=1)
-        
+        # Reverse the order of the slices for the backward LSTM
+        self.x_premise_slices_back = tf.reverse_sequence(self.x_premise_slices, self.prem_seq_lengths, seq_axis=0, batch_axis=1)
+        self.x_hypothesis_slices_back = tf.reverse_sequence(self.x_hypothesis_slices, self.hyp_seq_lengths, seq_axis=0, batch_axis=1)
+   
         self.h_zero = tf.zeros(tf.stack([tf.shape(self.premise_x)[0], self.dim]))
 
         premise_f, hypothesis_f = lstm_run(self.x_premise_slices, self.x_hypothesis_slices, 'f')
         premise_rev, hypothesis_rev = lstm_run(self.x_premise_slices_back, self.x_hypothesis_slices_back, 'b')
 
-        premise_b = tf.reverse_sequence(premise_rev, prem_seq_lengths, seq_axis=1, batch_axis=0)
-        hypothesis_b = tf.reverse_sequence(hypothesis_rev, hyp_seq_lengths, seq_axis=1, batch_axis=0)
+        premise_b = tf.reverse_sequence(premise_rev, self.prem_seq_lengths, seq_axis=1, batch_axis=0)
+        hypothesis_b = tf.reverse_sequence(hypothesis_rev, self.hyp_seq_lengths, seq_axis=1, batch_axis=0)
 
         premise_bi = tf.concat([premise_f, premise_b], axis=2)
         hypothesis_bi = tf.concat([hypothesis_f, hypothesis_b], axis=2) 
@@ -173,11 +174,14 @@ class MyModel(object):
 
         ### Inference Composition ###
 
-        v1_f, v2_f = lstm_run(m_a, m_b, 'f2', emb=False)
-        v1_rev, v2_rev = lstm_run(m_a, m_b, 'b2', emb=False)
+        m_a_back = tf.reverse_sequence(m_a, self.prem_seq_lengths, seq_axis=0, batch_axis=1)
+        m_b_back = tf.reverse_sequence(m_b, self.hyp_seq_lengths, seq_axis=0, batch_axis=1)
 
-        v1_b = tf.reverse_sequence(v1_rev, prem_seq_lengths, seq_axis=1, batch_axis=0)
-        v2_b = tf.reverse_sequence(v2_rev, prem_seq_lengths, seq_axis=1, batch_axis=0)
+        v1_f, v2_f = lstm_run(m_a, m_b, 'f2', emb=False)
+        v1_rev, v2_rev = lstm_run(m_a_back, m_b_back, 'b2', emb=False)
+
+        v1_b = tf.reverse_sequence(v1_rev, self.prem_seq_lengths, seq_axis=1, batch_axis=0)
+        v2_b = tf.reverse_sequence(v2_rev, self.hyp_seq_lengths, seq_axis=1, batch_axis=0)
 
         v1_bi = tf.concat([v1_f, v1_b], axis=2)
         v2_bi = tf.concat([v2_f, v2_b], axis=2)
