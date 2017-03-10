@@ -1,4 +1,4 @@
-!/bin/bash
+#!/bin/bash
 
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -9,4 +9,4 @@
 module load tensorflow/python2.7/20170218
 
 # Run.
-PYTHONPATH=$PYTHONPATH:. python ebim/ebim.py ebim-100d
+PYTHONPATH=$PYTHONPATH:. python train.py ebim ebim

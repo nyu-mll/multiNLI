@@ -68,17 +68,7 @@ def sentences_to_padded_index_sequences(datasets):
 
                 token_sequence = tokenize(example[sentence])
                 padding = FIXED_PARAMETERS["seq_length"] - len(token_sequence)
-                
-                for i in range(FIXED_PARAMETERS["seq_length"]):
-                    if i >= padding:
-                        index = word_indices[token_sequence[i - padding]]
-                        #if token_sequence[i - padding] in word_indices:
-                        #    index = word_indices[token_sequence[i - padding]]
-                        #else:
-                        #    index = word_indices[UNKNOWN]
-                    else:
-                        index = word_indices[PADDING]
-                        
+                      
                 for i in range(FIXED_PARAMETERS["seq_length"]):
                     if i >= len(token_sequence):
                         index = word_indices[PADDING]
