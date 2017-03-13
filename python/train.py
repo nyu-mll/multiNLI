@@ -4,12 +4,11 @@ from util import logger
 import util.parameters
 from util.data_processing import *
 from util.evaluate import evaluate_classifier
-#from test-exp import EBIMClassifier
 
 FIXED_PARAMETERS = parameters.load_parameters()
 
 if FIXED_PARAMETERS["model_type"] == 'ebim':
-    from ebim.ebim import MyModel
+    from ebim.ebim_box import MyModel
 else:
     from cbow.cbow import MyModel
 
@@ -23,7 +22,7 @@ if os.path.exists(logpath) == False:
     logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 
 
-################################ LOAD DATA ########################################
+######################### LOAD DATA #############################
 
 training_set = load_nli_data(FIXED_PARAMETERS["training_data_path"])
 dev_set = load_nli_data(FIXED_PARAMETERS["dev_data_path"])
@@ -57,6 +56,7 @@ class modelClassifier:
         self.init = tf.global_variables_initializer()
         self.sess = None
         self.saver = tf.train.Saver()
+
 
     def get_minibatch(self, dataset, start_index, end_index):
         indices = range(start_index, end_index)
@@ -100,9 +100,9 @@ class modelClassifier:
             # Loop over all batches in epoch
             for i in range(total_batch):
                 # Assemble a minibatch of the next B examples
-                minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = self.get_minibatch(
+                minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels= self.get_minibatch(
                     training_data, self.batch_size * i, self.batch_size * (i + 1))
-
+                
                 # Run the optimizer to take a gradient step, and also fetch the value of the 
                 # cost function for logging
                 feed_dict = {self.model.premise_x: minibatch_premise_vectors,
@@ -117,7 +117,6 @@ class modelClassifier:
                     dev_acc, dev_cost = evaluate_classifier(self.classify, dev_data, self.batch_size)
                     train_acc, train_cost = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
                     logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f\t Dev cost %f\t Train cost %f" %(self.step, dev_acc, train_acc, dev_cost, train_cost))
-                    #\t Dev cost %f\t Train cost %f
 
                 if self.step % 1000 == 0:
                     self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")
@@ -127,6 +126,7 @@ class modelClassifier:
                         self.best_dev_acc = dev_acc
                         self.best_train_acc = train_acc
                         self.best_epoch = self.epoch
+                        logger.Log("Checkpointing with new best dev accuracy: %f" %(self.best_dev_acc))
                                   
                 self.step += 1
 
@@ -159,7 +159,7 @@ class modelClassifier:
         total_batch = int(len(examples) / self.batch_size)
         logits = np.empty(3)
         for i in range(total_batch):
-            minibatch_premise_vectors, minibatch_hypothesis_vectors,minibatch_labels = self.get_minibatch(
+            minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = self.get_minibatch(
                 examples, self.batch_size * i, self.batch_size * (i + 1))
             feed_dict = {self.model.premise_x: minibatch_premise_vectors, 
                                 self.model.hypothesis_x: minibatch_hypothesis_vectors,
@@ -175,10 +175,12 @@ classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
 
 # Now either train the model and then run it on the test set or just load the best checkpoint 
 # and get accuracy on the test set. Default setting is to train the model.
+
 test = parameters.train_or_test()
 
 if test == False:
     classifier.train(training_set, dev_set)
-    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set, FIXED_PARAMETERS["batch_size"]))[1])
+    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set, FIXED_PARAMETERS["batch_size"]))[0])
 else:
-    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set, FIXED_PARAMETERS["batch_size"]))[1])
+    logger.Log("Test acc: %s" %(evaluate_classifier(classifier.classify, test_set, FIXED_PARAMETERS["batch_size"]))[0])
+

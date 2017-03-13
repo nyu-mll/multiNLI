@@ -15,83 +15,23 @@ class MyModel(object):
 
         ## Define parameters
         self.E = tf.Variable(embeddings, trainable=True)
-
-        self.W_f = {}
-        self.W_i = {}
-        self.W_o = {}
-        self.b_f = {}
-        self.b_i = {}
-        self.b_o = {}
-        self.W_c = {}
-        self.b_c = {}
-            
-        for name in ['f', 'b', 'f2', 'b2']:
-            if name in ['f', 'b']:
-                in_dim = self.embedding_dim
-            else:
-                in_dim = self.dim * 8
-            
-            self.W_f[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
-            self.b_f[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-
-            self.W_i[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
-            self.b_i[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-
-            self.W_o[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
-            self.b_o[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-
-            self.W_c[name] = tf.Variable(tf.random_normal([in_dim + self.dim, self.dim], stddev=0.1))
-            self.b_c[name] = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
-
         
         self.W_mlp = tf.Variable(tf.random_normal([self.dim * 8, self.dim], stddev=0.1))
         self.b_mlp = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
 
         self.W_cl = tf.Variable(tf.random_normal([self.dim, 3], stddev=0.1))
         self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1))
-                
+        
         
         # Define the LSTM call
-        def lstm(emb, h_prev, c_prev, name): #removed name entry from function
-            emb_h_prev = tf.concat([emb, h_prev], 1)
-            f_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_f[name])  + self.b_f[name])
-            i_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_i[name])  + self.b_i[name])
-            c_tilde = tf.nn.tanh(tf.matmul(emb_h_prev, self.W_c[name])  + self.b_c[name])
-            c = f_t * c_prev + i_t * c_tilde
-            o_t = tf.nn.sigmoid(tf.matmul(emb_h_prev, self.W_o[name])  + self.b_o[name])
-            h = o_t * tf.nn.tanh(c)
-            return h, c
 
+        ### Define biLSTM
         # Embedding lookup and dropout at embedding layer
-        def lstm_emb(x, h_prev, c_prev, name):
-            emb = tf.nn.embedding_lookup(self.E, x) # (?, 1, dim)
+        def emb_drop(x):
+            #emb = tf.nn.embedding_lookup(self.E, tf.transpose(x))
+            emb = tf.nn.embedding_lookup(self.E, x)
             emb_drop = tf.nn.dropout(emb, self.keep_rate_ph)
-            return lstm(emb_drop, h_prev, c_prev, name)
-
-        # Full run of premise and hypothesis LSTM in one direction
-        def lstm_run(inputs_prem, inputs_hyp, name, emb=True):
-            prem_list = []
-            hyp_list = []
-            prem_h_prev = self.h_zero
-            prem_c_prev = self.h_zero
-            hyp_h_prev = self.h_zero
-            hyp_c_prev = self.h_zero
-            for t in range(self.sequence_length):
-                if emb==True:
-                    a_t = tf.reshape(inputs_prem[t], [-1])
-                    b_t = tf.reshape(inputs_hyp[t], [-1])
-                    prem_h_prev, prem_c_prev = lstm_emb(a_t, prem_h_prev, prem_c_prev, name)
-                    hyp_h_prev, hyp_c_prev = lstm_emb(b_t, hyp_h_prev, hyp_c_prev, name)
-                else:
-                    a_t = inputs_prem[t]
-                    b_t = inputs_hyp[t]
-                    prem_h_prev, prem_c_prev = lstm(a_t, prem_h_prev, prem_c_prev, name)
-                    hyp_h_prev, hyp_c_prev = lstm(b_t, hyp_h_prev, hyp_c_prev, name)
-
-                prem_list.append(prem_h_prev)
-                hyp_list.append(hyp_h_prev)
-
-            return tf.stack(prem_list, axis=1), tf.stack(hyp_list, axis=1)
+            return emb_drop
 
         def length(sentence):
             populated = tf.sign(tf.abs(sentence))
@@ -99,39 +39,40 @@ class MyModel(object):
             return length
 
         # Get lengths of unpadded sentences
-        self.prem_seq_lengths = length(self.premise_x)
-        self.hyp_seq_lengths = length(self.hypothesis_x)
+        prem_seq_lengths = length(self.premise_x)
+        hyp_seq_lengths = length(self.hypothesis_x)
 
+        def biLSTM(inputs, seq_len, name):
+            with tf.name_scope(name):
+              with tf.variable_scope('forward' + name):
+                lstm_fwd = tf.contrib.rnn.LSTMCell(self.dim, forget_bias=1.0)
+              with tf.variable_scope('backward' + name):
+                lstm_bwd = tf.contrib.rnn.LSTMCell(self.dim, forget_bias=1.0)
+
+              hidden_states, cell_states = tf.nn.bidirectional_dynamic_rnn(cell_fw=lstm_fwd, cell_bw=lstm_bwd, inputs=inputs, sequence_length=seq_len, dtype=tf.float32, scope=name)
+
+            return hidden_states, cell_states
 
         ### First biLSTM layer ###
 
-        # Split up the inputs into individual tensors
-        self.x_premise_slices = tf.split(self.premise_x, self.sequence_length, 1)
-        self.x_hypothesis_slices = tf.split(self.hypothesis_x, self.sequence_length, 1)
+        premise_in = emb_drop(self.premise_x)
+        hypothesis_in = emb_drop(self.hypothesis_x)
 
-        # Reverse the order of the slices for the backward LSTM
-        self.x_premise_slices_back = tf.reverse_sequence(self.x_premise_slices, self.prem_seq_lengths, seq_axis=0, batch_axis=1)
-        self.x_hypothesis_slices_back = tf.reverse_sequence(self.x_hypothesis_slices, self.hyp_seq_lengths, seq_axis=0, batch_axis=1)
-   
-        self.h_zero = tf.zeros(tf.stack([tf.shape(self.premise_x)[0], self.dim]))
+        premise_outs, c1 = biLSTM(premise_in, prem_seq_lengths, 'premise')
+        hypothesis_outs, c2 = biLSTM(hypothesis_in, hyp_seq_lengths, 'hypothesis')
 
-        premise_f, hypothesis_f = lstm_run(self.x_premise_slices, self.x_hypothesis_slices, 'f')
-        premise_rev, hypothesis_rev = lstm_run(self.x_premise_slices_back, self.x_hypothesis_slices_back, 'b')
-
-        premise_b = tf.reverse_sequence(premise_rev, self.prem_seq_lengths, seq_axis=1, batch_axis=0)
-        hypothesis_b = tf.reverse_sequence(hypothesis_rev, self.hyp_seq_lengths, seq_axis=1, batch_axis=0)
-
-        premise_bi = tf.concat([premise_f, premise_b], axis=2)
-        hypothesis_bi = tf.concat([hypothesis_f, hypothesis_b], axis=2) 
+        premise_bi = tf.concat(premise_outs, axis=2)
+        hypothesis_bi = tf.concat(hypothesis_outs, axis=2)
 
         premise_list = tf.unstack(premise_bi, axis=1)
         hypothesis_list = tf.unstack(hypothesis_bi, axis=1)
 
-        
+
         ### Attention ###
 
         scores_all = []
         premise_attn = []
+        alphas = []
         for i in range(self.sequence_length):
             scores_i_list = []
             for j in range(self.sequence_length):
@@ -143,17 +84,23 @@ class MyModel(object):
             premise_attn.append(a_tilde_i)
             
             scores_all.append(scores_i)
+            alphas.append(alpha_i)
 
         scores_stack = tf.stack(scores_all, axis=2)
 
         hypothesis_attn = []
+        betas = []
         for j in range(self.sequence_length):
             scores_j = tf.unstack(scores_stack, axis=2)[j]
             beta_j = tf.nn.softmax(scores_j, dim=1)
             b_tilde_j = tf.reduce_sum(tf.multiply(beta_j, premise_bi), 1)
             hypothesis_attn.append(b_tilde_j)
-        
-        #self.complete_attn_weights = stack lists of alpha_is and beta_js
+
+            betas.append(beta_j)
+
+        # For making attention plots, 
+        self.alpha_s = tf.stack(alphas, axis=2)
+        self.beta_s = tf.stack(betas, axis=2)
 
 
         ### Subcomponent Inference ###
@@ -174,17 +121,14 @@ class MyModel(object):
 
         ### Inference Composition ###
 
-        m_a_back = tf.reverse_sequence(m_a, self.prem_seq_lengths, seq_axis=0, batch_axis=1)
-        m_b_back = tf.reverse_sequence(m_b, self.hyp_seq_lengths, seq_axis=0, batch_axis=1)
+        M_a = tf.stack(m_a, axis=1)
+        M_b = tf.stack(m_b, axis=1)
 
-        v1_f, v2_f = lstm_run(m_a, m_b, 'f2', emb=False)
-        v1_rev, v2_rev = lstm_run(m_a_back, m_b_back, 'b2', emb=False)
+        v1_outs, c3 = biLSTM(M_a, prem_seq_lengths, 'v1')
+        v2_outs, c4 = biLSTM(M_b, hyp_seq_lengths, 'v2')
 
-        v1_b = tf.reverse_sequence(v1_rev, self.prem_seq_lengths, seq_axis=1, batch_axis=0)
-        v2_b = tf.reverse_sequence(v2_rev, self.hyp_seq_lengths, seq_axis=1, batch_axis=0)
-
-        v1_bi = tf.concat([v1_f, v1_b], axis=2)
-        v2_bi = tf.concat([v2_f, v2_b], axis=2)
+        v1_bi = tf.concat(v1_outs, axis=2)
+        v2_bi = tf.concat(v2_outs, axis=2)
 
 
         ### Pooling Layer ###
