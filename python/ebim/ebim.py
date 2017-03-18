@@ -91,7 +91,7 @@ class MyModel(object):
         hypothesis_attn = []
         betas = []
         for j in range(self.sequence_length):
-            scores_j = tf.unstack(scores_stack, axis=2)[j]
+            scores_j = tf.unstack(scores_stack, axis=1)[j]
             beta_j = tf.nn.softmax(scores_j, dim=1)
             b_tilde_j = tf.reduce_sum(tf.multiply(beta_j, premise_bi), 1)
             hypothesis_attn.append(b_tilde_j)

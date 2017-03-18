@@ -8,7 +8,7 @@ from util.evaluate import evaluate_classifier
 FIXED_PARAMETERS = parameters.load_parameters()
 
 if FIXED_PARAMETERS["model_type"] == 'ebim':
-    from ebim.ebim_box import MyModel
+    from ebim.ebim import MyModel
 else:
     from cbow.cbow import MyModel
 
