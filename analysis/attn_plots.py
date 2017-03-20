@@ -10,10 +10,11 @@ from python.util.data_processing import *
 from python.util.evaluate import evaluate_classifier
 import matplotlib.pyplot as plt
 
+
 FIXED_PARAMETERS = parameters.load_parameters()
 
 if FIXED_PARAMETERS["model_type"] == 'ebim':
-    from python.ebim.ebim_box import MyModel
+    from python.ebim.ebim import MyModel
 else:
     assert (FIXED_PARAMETERS["model_type"] != 'ebim'), \
        'Give a valid model that uses attention.'
@@ -78,26 +79,36 @@ class modelClassifier:
     def plot_attn(self, examples):
         alphas, betas, prediction = self.get_attn(examples)
 
-        for i in range(len(examples)):    
-            fig = plt.figure(figsize=(10,10))
-            ax = fig.add_subplot(111)
-            ax.matshow(alphas[i,:,:], vmin=0., vmax=1., cmap=plt.cm.inferno)
+        print alphas - betas
 
-            premise_tokens = [indices_to_words[index] for index in examples[i]['sentence1_binary_parse_index_sequence']]
-            hypothesis_tokens = [indices_to_words[index] for index in examples[i]['sentence2_binary_parse_index_sequence']]
+        for j in range(2):
+            if j == 0:
+                weight = alphas
+                s = 'alpha'
+            else:
+                weight = betas
+                s = 'beta'
+            for i in range(len(examples)):    
+                fig = plt.figure(figsize=(10,10))
+                ax = fig.add_subplot(111)
+                ax.matshow(betas[i,:,:], vmin=0., vmax=1., cmap=plt.cm.inferno)
 
-            ax.set_yticklabels(hypothesis_tokens)
-            ax.set_xticklabels(premise_tokens, rotation=45)
+                premise_tokens = [indices_to_words[index] for index in examples[i]['sentence1_binary_parse_index_sequence']]
+                hypothesis_tokens = [indices_to_words[index] for index in examples[i]['sentence2_binary_parse_index_sequence']]
 
-            ax.set_xticks(np.arange(0, 25, 1.0))
-            ax.set_yticks(np.arange(0, 25, 1.0))
-            ax.tick_params(axis='both', labelsize=10)
-            title_e = examples[i]
-            true = title_e['label']
-            ax.set_xlabel('True label: %s, Predicted label: %s' %(true, prediction[i]))
-            plt.tight_layout()
-            #plt.savefig("../attn_box/" + modname + str(2) + '_' + str(i) + ".png")
-            plt.show()
+                ax.set_yticklabels(hypothesis_tokens)
+                ax.set_xticklabels(premise_tokens, rotation=45)
+
+                ax.set_xticks(np.arange(0, 25, 1.0))
+                ax.set_yticks(np.arange(0, 25, 1.0))
+                ax.tick_params(axis='both', labelsize=10)
+                title_e = examples[i]
+                true = title_e['label']
+                ax.set_xlabel('True label: %s, Predicted label: %s' %(true, prediction[i]))
+                ax.set_title('Plotting %s weights' %s)
+                plt.tight_layout()
+                #plt.savefig('./attn_box' + modname + str(i) + ".png")
+                plt.show()
 
 
 classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
