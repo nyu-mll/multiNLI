@@ -79,8 +79,6 @@ class modelClassifier:
     def plot_attn(self, examples):
         alphas, betas, prediction = self.get_attn(examples)
 
-        print alphas - betas
-
         for j in range(2):
             if j == 0:
                 weight = alphas
@@ -88,16 +86,22 @@ class modelClassifier:
             else:
                 weight = betas
                 s = 'beta'
+
             for i in range(len(examples)):    
                 fig = plt.figure(figsize=(10,10))
                 ax = fig.add_subplot(111)
-                ax.matshow(betas[i,:,:], vmin=0., vmax=1., cmap=plt.cm.inferno)
+                ax.matshow(weight[i,:,:], vmin=0., vmax=1., cmap=plt.cm.inferno)
 
                 premise_tokens = [indices_to_words[index] for index in examples[i]['sentence1_binary_parse_index_sequence']]
                 hypothesis_tokens = [indices_to_words[index] for index in examples[i]['sentence2_binary_parse_index_sequence']]
 
-                ax.set_yticklabels(hypothesis_tokens)
-                ax.set_xticklabels(premise_tokens, rotation=45)
+                if s == 'alpha':
+                    ax.set_yticklabels(hypothesis_tokens)
+                    ax.set_xticklabels(premise_tokens, rotation=45)
+
+                if s == 'beta':
+                    ax.set_yticklabels(premise_tokens)
+                    ax.set_xticklabels(hypothesis_tokens, rotation=45)
 
                 ax.set_xticks(np.arange(0, 25, 1.0))
                 ax.set_yticks(np.arange(0, 25, 1.0))
@@ -107,7 +111,7 @@ class modelClassifier:
                 ax.set_xlabel('True label: %s, Predicted label: %s' %(true, prediction[i]))
                 ax.set_title('Plotting %s weights' %s)
                 plt.tight_layout()
-                #plt.savefig('./attn_box' + modname + str(i) + ".png")
+                #plt.savefig('./attn_plots' + modname + '_' + s + str(i) + ".png")
                 plt.show()
 
 
@@ -117,4 +121,5 @@ classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
 #        classifier.get_attn(training_set[0:3])[0, :, :]).all(), \
 #       'Warning: There is cross-example information flow.'
 
-classifier.plot_attn(training_set[0:1])
+classifier.plot_attn(training_set[0:5])
+
