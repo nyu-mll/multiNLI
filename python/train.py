@@ -8,9 +8,15 @@ from util.evaluate import evaluate_classifier
 FIXED_PARAMETERS = parameters.load_parameters()
 
 if FIXED_PARAMETERS["model_type"] == 'ebim':
-    from ebim.ebim import MyModel
+    from ebim.ebim_noDiffMul import MyModel
 else:
     from cbow.cbow import MyModel
+
+'''
+ebim_noAvgPool
+ebim_noDiffMul
+ebim_noInfBiLSTM
+'''
 
 modname = FIXED_PARAMETERS["model_name"]
 logpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".log"
@@ -24,6 +30,7 @@ if os.path.exists(logpath) == False:
 
 ######################### LOAD DATA #############################
 
+logger.Log("Loading data")
 training_set = load_nli_data(FIXED_PARAMETERS["training_data_path"])
 dev_set = load_nli_data(FIXED_PARAMETERS["dev_data_path"])
 test_set = load_nli_data(FIXED_PARAMETERS["test_data_path"])
