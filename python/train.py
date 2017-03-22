@@ -8,7 +8,11 @@ from util.evaluate import evaluate_classifier
 FIXED_PARAMETERS = parameters.load_parameters()
 
 if FIXED_PARAMETERS["model_type"] == 'ebim':
-    from ebim.ebim_noDiffMul import MyModel
+    from ebim.ebim import MyModel
+
+elif FIXED_PARAMETERS["model_type"] == 'bilstm':
+    from bilstm.bilstm_attn import MyModel
+
 else:
     from cbow.cbow import MyModel
 
@@ -16,6 +20,7 @@ else:
 ebim_noAvgPool
 ebim_noDiffMul
 ebim_noInfBiLSTM
+bilstm_attn
 '''
 
 modname = FIXED_PARAMETERS["model_name"]
@@ -77,6 +82,13 @@ class modelClassifier:
         self.sess = tf.Session()
         self.sess.run(self.init)
 
+        self.step = 1
+        self.epoch = 0
+        self.best_dev_acc = 0.
+        self.best_train_acc = 0.
+        self.last_train_acc = [.001, .001, .001, .001, .001]
+        self.best_epoch = 0
+
         # Restore best-checkpoint if it exists
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
         if os.path.isfile(ckpt_file + ".meta"):
@@ -88,12 +100,6 @@ class modelClassifier:
             self.saver.restore(self.sess, ckpt_file)
             logger.Log("Model restored from file: %s" % ckpt_file)
 
-        self.step = 1
-        self.epoch = 0
-        self.best_dev_acc = 0.
-        self.best_train_acc = 0.
-        self.last_train_acc = [.001, .001, .001, .001, .001]
-        self.best_epoch = 0
 
         ### Training cycle
         logger.Log("Training...")
@@ -118,23 +124,23 @@ class modelClassifier:
                                                 self.model.keep_rate_ph: self.keep_rate}
                 _, c = self.sess.run([self.optimizer, self.model.total_cost], feed_dict)
 
-                # Since a single epoch can take a  ages, we'll print accuracy every
-                # 250 steps as well as every epoch
+                # Since a single epoch can take a  ages, we'll print 
+                # accuracy every 50 steps
                 if self.step % self.display_step_freq == 0:
                     dev_acc, dev_cost = evaluate_classifier(self.classify, dev_data, self.batch_size)
                     train_acc, train_cost = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
                     logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f\t Dev cost %f\t Train cost %f" %(self.step, dev_acc, train_acc, dev_cost, train_cost))
 
-                if self.step % 1000 == 0:
+                if self.step % 500 == 0:
                     self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")
                     best_test = 100 * (1 - self.best_dev_acc / dev_acc)
-                    if best_test > 0.1:
+                    if best_test > 0.04:
                         self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
                         self.best_dev_acc = dev_acc
                         self.best_train_acc = train_acc
                         self.best_epoch = self.epoch
                         logger.Log("Checkpointing with new best dev accuracy: %f" %(self.best_dev_acc))
-                                  
+
                 self.step += 1
 
                 # Compute average loss
