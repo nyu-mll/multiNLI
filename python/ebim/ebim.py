@@ -23,9 +23,8 @@ class MyModel(object):
         self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1))
         
         
-        # Define the LSTM call
 
-        ### Define biLSTM
+        ## Define biLSTM 
         # Embedding lookup and dropout at embedding layer
         def emb_drop(x):
             emb = tf.nn.embedding_lookup(self.E, x)
@@ -65,7 +64,7 @@ class MyModel(object):
 
         premise_list = tf.unstack(premise_bi, axis=1)
         hypothesis_list = tf.unstack(hypothesis_bi, axis=1)
-        
+
 
         ### Attention ###
 
@@ -103,13 +102,12 @@ class MyModel(object):
             betas.append(beta_j)
 
         # Make attention-weighted sentence representations into one tensor,
-        premimse_attns = tf.stack(premise_attn, axis=1)
+        premise_attns = tf.stack(premise_attn, axis=1)
         hypothesis_attns = tf.stack(hypothesis_attn, axis=1)
 
         # For making attention plots, 
         self.alpha_s = tf.stack(alphas, axis=2)
         self.beta_s = tf.stack(betas, axis=2)
-
 
 
         ### Subcomponent Inference ###
@@ -121,7 +119,6 @@ class MyModel(object):
 
         m_a = tf.concat([premise_bi, premise_attns, prem_diff, prem_mul], 2)
         m_b = tf.concat([hypothesis_bi, hypothesis_attns, hyp_diff, hyp_mul], 2)
-
 
 
         ### Inference Composition ###
