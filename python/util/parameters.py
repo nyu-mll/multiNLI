@@ -2,7 +2,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-models = ['ebim','cbow']
+models = ['ebim','cbow', 'bilstm']
 
 def substring(s):
     options = [mod for mod in models if s in mod]
@@ -11,7 +11,7 @@ def substring(s):
     return s
 
 parser.add_argument("model_type", choices=models, type=substring, help="Accepted model types: ebim or cbow")
-parser.add_argument("model_name", type=str, help="Give model name, this will prefix logs and checkpoints made. For example cbow, cbow-2, spinn etc.")
+parser.add_argument("model_name", type=str, help="Give model name, this will prefix logs and checkpoints made. For example cbow, ebim2 etc.")
 parser.add_argument("--data_type", type=str, default="snli", help="Give dataset name, example snli, multiNLI etc.")
 parser.add_argument("--datapath", type=str, default="../data")
 parser.add_argument("--logpath", type=str, default="../logs")
