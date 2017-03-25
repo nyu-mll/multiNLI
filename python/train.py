@@ -1,31 +1,22 @@
 import tensorflow as tf
 import os
+import importlib
 from util import logger
 import util.parameters
 from util.data_processing import *
 from util.evaluate import evaluate_classifier
 
 FIXED_PARAMETERS = parameters.load_parameters()
-
-if FIXED_PARAMETERS["model_type"] == 'ebim':
-    from ebim import MyModel
-
-elif FIXED_PARAMETERS["model_type"] == 'bilstm':
-    from bilstm.bilstm import MyModel
-
-else:
-    from cbow.cbow import MyModel
-
-'''
-ebim_noAvgPool
-ebim_noDiffMul
-ebim_noInfBiLSTM
-bilstm_attn
-'''
-
 modname = FIXED_PARAMETERS["model_name"]
 logpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".log"
 logger = logger.Logger(logpath)
+
+model = FIXED_PARAMETERS["model_type"]
+submodel = FIXED_PARAMETERS["model_subtype"]
+
+module = importlib.import_module(".".join([model, submodel])) 
+MyModel = getattr(module, 'MyModel')
+logger.Log("Using model from %s.py script" %(submodel))
 
 # Print fixed parameters, only print if this is a new log file 
 # (don't need repeated information if we're picking up from an old checkpoint/log file)
@@ -60,7 +51,6 @@ class modelClassifier:
         self.model = MyModel(seq_length=self.sequence_length, emb_dim=self.embedding_dim,  hidden_dim=self.dim, embeddings=loaded_embeddings)
 
         # Perform gradient descent with Adam
-        logger.Log("Building optimizer")
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.model.total_cost)
 
         # tf things: initialize variables and create placeholder for session
@@ -132,7 +122,7 @@ class modelClassifier:
                     logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f\t Dev cost %f\t Train cost %f" %(self.step, dev_acc, train_acc, dev_cost, train_cost))
 
                 if self.step % 500 == 0:
-                    #self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")
+                    logger.Log("Creating periodic checkpoint with dev accuracy: %f" %(dev_acc))
                     self.saver.save(self.sess, ckpt_file)
                     best_test = 100 * (1 - self.best_dev_acc / dev_acc)
                     if best_test > 0.04:
