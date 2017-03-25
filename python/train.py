@@ -8,10 +8,10 @@ from util.evaluate import evaluate_classifier
 FIXED_PARAMETERS = parameters.load_parameters()
 
 if FIXED_PARAMETERS["model_type"] == 'ebim':
-    from ebim.ebim import MyModel
+    from ebim.ebim_attnfix import MyModel
 
 elif FIXED_PARAMETERS["model_type"] == 'bilstm':
-    from bilstm.bilstm_attn import MyModel
+    from bilstm.bilstm import MyModel
 
 else:
     from cbow.cbow import MyModel
@@ -132,10 +132,12 @@ class modelClassifier:
                     logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f\t Dev cost %f\t Train cost %f" %(self.step, dev_acc, train_acc, dev_cost, train_cost))
 
                 if self.step % 500 == 0:
-                    self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")
+                    #self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt")
+                    self.saver.save(self.sess, ckpt_file)
                     best_test = 100 * (1 - self.best_dev_acc / dev_acc)
                     if best_test > 0.04:
-                        self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
+                        #self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
+                        self.saver.save(self.sess, ckpt_file + "_best")
                         self.best_dev_acc = dev_acc
                         self.best_train_acc = train_acc
                         self.best_epoch = self.epoch
