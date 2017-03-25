@@ -16,7 +16,6 @@ submodel = FIXED_PARAMETERS["model_subtype"]
 
 module = importlib.import_module(".".join([model, submodel])) 
 MyModel = getattr(module, 'MyModel')
-logger.Log("Using model from %s.py script" %(submodel))
 
 # Print fixed parameters, only print if this is a new log file 
 # (don't need repeated information if we're picking up from an old checkpoint/log file)
@@ -47,7 +46,7 @@ class modelClassifier:
         self.keep_rate = FIXED_PARAMETERS["keep_rate"]
         self.sequence_length = FIXED_PARAMETERS["seq_length"] 
 
-        logger.Log("Building model")
+        logger.Log("Building model from %s.py" %(submodel))
         self.model = MyModel(seq_length=self.sequence_length, emb_dim=self.embedding_dim,  hidden_dim=self.dim, embeddings=loaded_embeddings)
 
         # Perform gradient descent with Adam
