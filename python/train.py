@@ -8,7 +8,7 @@ from util.evaluate import evaluate_classifier
 FIXED_PARAMETERS = parameters.load_parameters()
 
 if FIXED_PARAMETERS["model_type"] == 'ebim':
-    from ebim.ebim_attnfix import MyModel
+    from ebim import MyModel
 
 elif FIXED_PARAMETERS["model_type"] == 'bilstm':
     from bilstm.bilstm import MyModel
