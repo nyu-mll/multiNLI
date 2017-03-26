@@ -1,4 +1,5 @@
 import tensorflow as tf
+from util import blocks
 
 class MyModel(object):
     def __init__(self, seq_length, emb_dim, hidden_dim, embeddings):
@@ -22,50 +23,30 @@ class MyModel(object):
         self.W_cl = tf.Variable(tf.random_normal([self.dim, 3], stddev=0.1))
         self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1))
         
-
-        ## Define biLSTM
-        # Embedding lookup and dropout at embedding layer
+        ## Fucntion for embedding lookup and dropout at embedding layer
         def emb_drop(x):
-            #emb = tf.nn.embedding_lookup(self.E, tf.transpose(x))
             emb = tf.nn.embedding_lookup(self.E, x)
             emb_drop = tf.nn.dropout(emb, self.keep_rate_ph)
             return emb_drop
 
-        def length(sentence):
-            populated = tf.sign(tf.abs(sentence))
-            length = tf.cast(tf.reduce_sum(populated, axis=1), tf.int32)
-            return length
-
         # Get lengths of unpadded sentences
-        prem_seq_lengths = length(self.premise_x)
-        hyp_seq_lengths = length(self.hypothesis_x)
-
-        def biLSTM(inputs, seq_len, name):
-            with tf.name_scope(name):
-              with tf.variable_scope('forward' + name):
-                lstm_fwd = tf.contrib.rnn.LSTMCell(self.dim, forget_bias=1.0)
-              with tf.variable_scope('backward' + name):
-                lstm_bwd = tf.contrib.rnn.LSTMCell(self.dim, forget_bias=1.0)
-
-              hidden_states, cell_states = tf.nn.bidirectional_dynamic_rnn(cell_fw=lstm_fwd, cell_bw=lstm_bwd, inputs=inputs, sequence_length=seq_len, dtype=tf.float32, scope=name)
-
-            return hidden_states, cell_states
+        prem_seq_lengths, prem_mask = blocks.length(self.premise_x)
+        hyp_seq_lengths, hyp_mask = blocks.length(self.hypothesis_x)
 
 
         ### BiLSTM layer ###
-
         premise_in = emb_drop(self.premise_x)
         hypothesis_in = emb_drop(self.hypothesis_x)
 
-        premise_outs, c1 = biLSTM(premise_in, prem_seq_lengths, 'premise')
-        hypothesis_outs, c2 = biLSTM(hypothesis_in, hyp_seq_lengths, 'hypothesis')
+        premise_outs, c1 = blocks.biLSTM(premise_in, dim=self.dim, seq_len=prem_seq_lengths, name='premise')
+        hypothesis_outs, c2 = blocks.biLSTM(hypothesis_in, dim=self.dim, seq_len=hyp_seq_lengths, name='hypothesis')
 
         premise_bi = tf.concat(premise_outs, axis=2)
         hypothesis_bi = tf.concat(hypothesis_outs, axis=2)
 
-        premise_final = tf.unstack(premise_bi, axis=1)[-1]
-        hypothesis_final = tf.unstack(hypothesis_bi, axis=1)[-1]
-        
+        premise_final = blocks.last_output(premise_bi, prem_seq_lengths)
+        hypothesis_final =  blocks.last_output(hypothesis_bi, hyp_seq_lengths)
+
 
         ### Mou et al. concat layer ###
         diff = tf.subtract(premise_final, hypothesis_final)
