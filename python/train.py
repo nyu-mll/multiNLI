@@ -37,7 +37,7 @@ loaded_embeddings = loadEmebdding_rand(FIXED_PARAMETERS["embedding_data_path"], 
 class modelClassifier:
     def __init__(self, seq_length):
         ## Define hyperparameters
-        self.learning_rate = FIXED_PARAMETERS["learning_rate"]
+        self.learning_rate =  FIXED_PARAMETERS["learning_rate"]
         self.display_epoch_freq = 1
         self.display_step_freq = 50
         self.embedding_dim = FIXED_PARAMETERS["word_embedding_dim"]
@@ -108,9 +108,9 @@ class modelClassifier:
                 # Run the optimizer to take a gradient step, and also fetch the value of the 
                 # cost function for logging
                 feed_dict = {self.model.premise_x: minibatch_premise_vectors,
-                                                self.model.hypothesis_x: minibatch_hypothesis_vectors,
-                                                self.model.y: minibatch_labels, 
-                                                self.model.keep_rate_ph: self.keep_rate}
+                                self.model.hypothesis_x: minibatch_hypothesis_vectors,
+                                self.model.y: minibatch_labels, 
+                                self.model.keep_rate_ph: self.keep_rate}
                 _, c = self.sess.run([self.optimizer, self.model.total_cost], feed_dict)
 
                 # Since a single epoch can take a  ages, we'll print 
@@ -121,7 +121,6 @@ class modelClassifier:
                     logger.Log("Step: %i\t Dev acc: %f\t Train acc: %f\t Dev cost %f\t Train cost %f" %(self.step, dev_acc, train_acc, dev_cost, train_cost))
 
                 if self.step % 500 == 0:
-                    logger.Log("Creating periodic checkpoint with dev accuracy: %f" %(dev_acc))
                     self.saver.save(self.sess, ckpt_file)
                     best_test = 100 * (1 - self.best_dev_acc / dev_acc)
                     if best_test > 0.04:
