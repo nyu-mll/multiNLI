@@ -20,10 +20,10 @@ PADDING = "<PAD>"
 #UNKNOWN = "<UNK>"
 
 
-'''
-Load NLI data
-'''
 def load_nli_data(path):
+    """
+    Load NLI data, formatted for SNLI.
+    """
     data = []
     with open(path) as f:
         for line in f:
@@ -38,15 +38,16 @@ def load_nli_data(path):
 
 
 
-'''
-Annotate datasets with feature vectors. Adding right-sided padding. 
-'''
 def sentences_to_padded_index_sequences(datasets):
+    """
+    Annotate datasets with feature vectors. Adding right-sided padding. 
+    """
     
     # Extract vocabulary
     def tokenize(string):
         string = re.sub(r'\(|\)', '', string)
-        return string.lower().split()
+        #return string.lower().split()
+        return string.split()
     
     word_counter = collections.Counter()
     for i, dataset in enumerate(datasets):
@@ -83,12 +84,14 @@ def sentences_to_padded_index_sequences(datasets):
     return indices_to_words, word_indices
 
 
-'''
-Load GloVe embeddings
-'''
 
 def loadEmebdding_zeros(path, word_indices):
+    """
+    Load GloVe embeddings. Initializng OOV to 0.
+    """
     emb = np.zeros((len(word_indices), FIXED_PARAMETERS["word_embedding_dim"]), dtype='float32')
+
+    print emb
     
     with open(path, 'r') as f:
         for i, line in enumerate(f):
@@ -103,26 +106,31 @@ def loadEmebdding_zeros(path, word_indices):
 
 
 def loadEmebdding_rand(path, word_indices):
+    """
+    Load GloVe embeddings. Doing a random normal nitialization for OOV.
+    """
+    j = 0
     n = len(word_indices)
     m = FIXED_PARAMETERS["word_embedding_dim"]
     emb = np.empty((n, m), dtype=np.float32)
 
-    # Can do batch-wise
-    #k = 10000
-    for i in range(0, n, n):
-        emb[i:i+n] = np.random.normal(size=(n,m))
+    emb[:,:] = np.random.normal(size=(n,m))
 
     # Want embedding of <PAD> to be zeros.
     emb[0, :] = np.zeros((1,m), dtype="float32")
+
+    print emb
     
     with open(path, 'r') as f:
         for i, line in enumerate(f):
-            if i >= FIXED_PARAMETERS["embeddings_to_load"]:
-                break
+            if FIXED_PARAMETERS["embeddings_to_load"] != None:
+                if i >= FIXED_PARAMETERS["embeddings_to_load"]:
+                    break
             
             s = line.split()
             if s[0] in word_indices:
+                j += 1
                 emb[word_indices[s[0]], :] = np.asarray(s[1:])
 
-    return emb
+    return emb, j
 
