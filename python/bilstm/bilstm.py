@@ -15,7 +15,7 @@ class MyModel(object):
         self.keep_rate_ph = tf.placeholder(tf.float32, [])
 
         ## Define parameters
-        self.E = tf.Variable(embeddings, trainable=True)
+        self.E = tf.Variable(embeddings, trainable=False)
         
         self.W_mlp = tf.Variable(tf.random_normal([self.dim * 8, self.dim], stddev=0.1))
         self.b_mlp = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
@@ -54,7 +54,7 @@ class MyModel(object):
         h = tf.concat([premise_final, hypothesis_final, diff, mul], 1)
 
         # MLP layer
-        h_mlp = tf.nn.tanh(tf.matmul(h, self.W_mlp) + self.b_mlp)
+        h_mlp = tf.nn.relu(tf.matmul(h, self.W_mlp) + self.b_mlp)
 
         # Dropout applied to classifier
         h_drop = tf.nn.dropout(h_mlp, self.keep_rate_ph)
