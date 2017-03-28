@@ -30,6 +30,7 @@ training_set = load_nli_data(FIXED_PARAMETERS["training_data_path"])
 dev_set = load_nli_data(FIXED_PARAMETERS["dev_data_path"])
 test_set = load_nli_data(FIXED_PARAMETERS["test_data_path"])
 
+logger.Log("Loading embeddings")
 indices_to_words, word_indices = sentences_to_padded_index_sequences([training_set, dev_set, test_set])
 loaded_embeddings = loadEmebdding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
@@ -94,7 +95,6 @@ class modelClassifier:
         logger.Log("Training...")
 
         while True:
-        #for epoch in range(self.training_epochs):
             random.shuffle(training_data)
             avg_cost = 0.
             total_batch = int(len(training_data) / self.batch_size)
@@ -124,7 +124,6 @@ class modelClassifier:
                     self.saver.save(self.sess, ckpt_file)
                     best_test = 100 * (1 - self.best_dev_acc / dev_acc)
                     if best_test > 0.04:
-                        #self.saver.save(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
                         self.saver.save(self.sess, ckpt_file + "_best")
                         self.best_dev_acc = dev_acc
                         self.best_train_acc = train_acc

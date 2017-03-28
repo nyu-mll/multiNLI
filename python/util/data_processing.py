@@ -90,8 +90,6 @@ def loadEmebdding_zeros(path, word_indices):
     Load GloVe embeddings. Initializng OOV to 0.
     """
     emb = np.zeros((len(word_indices), FIXED_PARAMETERS["word_embedding_dim"]), dtype='float32')
-
-    print emb
     
     with open(path, 'r') as f:
         for i, line in enumerate(f):
@@ -118,8 +116,6 @@ def loadEmebdding_rand(path, word_indices):
 
     # Want embedding of <PAD> to be zeros.
     emb[0, :] = np.zeros((1,m), dtype="float32")
-
-    print emb
     
     with open(path, 'r') as f:
         for i, line in enumerate(f):
@@ -129,8 +125,7 @@ def loadEmebdding_rand(path, word_indices):
             
             s = line.split()
             if s[0] in word_indices:
-                j += 1
                 emb[word_indices[s[0]], :] = np.asarray(s[1:])
 
-    return emb, j
+    return emb
 
