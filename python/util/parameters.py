@@ -56,5 +56,3 @@ def load_parameters():
 
 def train_or_test():
     return args.test
-
-    #glove.6B.50d.txt, glove.840B.300d.txt
