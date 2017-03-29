@@ -9,4 +9,4 @@
 module load tensorflow/python2.7/20170218
 
 # Run.
-PYTHONPATH=$PYTHONPATH:. python train.py ebim ebim
+PYTHONPATH=$PYTHONPATH:. python train.py ebim ebim experiment_name --keep_rate 0.5 --learning_rate 0.0004

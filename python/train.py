@@ -17,10 +17,9 @@ submodel = FIXED_PARAMETERS["model_subtype"]
 module = importlib.import_module(".".join([model, submodel])) 
 MyModel = getattr(module, 'MyModel')
 
-# Print fixed parameters, only print if this is a new log file 
-# (don't need repeated information if we're picking up from an old checkpoint/log file)
-if os.path.exists(logpath) == False:
-    logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
+# Logging parameter settings at each launch of training script
+# This will help ensure nothing goes awry in reloading a model and we don't accidentally use different hyperparameter settings.
+logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 
 
 ######################### LOAD DATA #############################
