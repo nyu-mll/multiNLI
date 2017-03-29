@@ -42,16 +42,16 @@ def load_parameters():
         "training_data_path": "{}/snli_1.0/snli_1.0_train.jsonl".format(args.datapath),
         "dev_data_path": "{}/snli_1.0/snli_1.0_dev.jsonl".format(args.datapath),
         "test_data_path": "{}/snli_1.0/snli_1.0_test.jsonl".format(args.datapath),
-        "embedding_data_path": "{}/glove.6B.50d.txt".format(args.datapath),
+        "embedding_data_path": "{}/glove.840B.300d.txt".format(args.datapath),
         "log_path": "{}".format(args.logpath),
         "ckpt_path":  "{}".format(args.logpath),
         "embeddings_to_load": args.emb_to_load,
         "word_embedding_dim": 300,
         "hidden_embedding_dim": 300,
         "seq_length": 25,
-        "keep_rate": args.keep_rate, #0.5, 
+        "keep_rate": args.keep_rate, 
         "batch_size": 32,
-        "learning_rate": args.learning_rate #0.0004,
+        "learning_rate": args.learning_rate
     }
 
     return FIXED_PARAMETERS
