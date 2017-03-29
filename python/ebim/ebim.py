@@ -15,7 +15,7 @@ class MyModel(object):
         self.keep_rate_ph = tf.placeholder(tf.float32, [])
 
         ## Define parameters
-        self.E = tf.Variable(embeddings, trainable=True)
+        self.E = tf.Variable(embeddings, trainable=False)
         
         self.W_mlp = tf.Variable(tf.random_normal([self.dim * 8, self.dim], stddev=0.1))
         self.b_mlp = tf.Variable(tf.random_normal([self.dim], stddev=0.1))
@@ -76,7 +76,7 @@ class MyModel(object):
         hypothesis_attn = []
         betas = []
         for j in range(self.sequence_length):
-            scores_j = scores_list[j] #tf.unstack(scores_stack, axis=1)[j]
+            scores_j = scores_list[j]
             beta_j = blocks.masked_softmax(scores_j, mask_prem)
             b_tilde_j = tf.reduce_sum(tf.multiply(beta_j, premise_bi), 1)
             hypothesis_attn.append(b_tilde_j)
@@ -89,7 +89,7 @@ class MyModel(object):
 
         # For making attention plots, 
         self.alpha_s = tf.stack(alphas, axis=2)
-        self.beta_s = tf.stack(betas, axis=2)
+        self.beta_s = tf.stack(betas, axis=2) 
 
 
         ### Subcomponent Inference ###
