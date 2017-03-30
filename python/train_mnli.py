@@ -88,12 +88,6 @@ class modelClassifier:
         self.last_train_acc = [.001, .001, .001, .001, .001]
         self.best_epoch = 0
 
-        # Combine MultiNLI and SNLI data. Alpha has a default value of 0, if we want to use SNLI data, it must be passed as an argument.
-        beta = int(self.alpha * len(train_snli))
-        training_data = train_mnli + random.sample(train_snli, beta)
-        print "Full train length:", len(training_data)
-        print "MNLI length:", len(train_mnli)
-        print "SNLI length:", len(train_snli)
 
         # Restore best-checkpoint if it exists
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
@@ -110,12 +104,16 @@ class modelClassifier:
             self.saver.restore(self.sess, ckpt_file)
             logger.Log("Model restored from file: %s" % ckpt_file)
 
+        
+        # Combine MultiNLI and SNLI data. Alpha has a default value of 0, if we want to use SNLI data, it must be passed as an argument.
+        beta = int(self.alpha * len(train_snli))
 
         ### Training cycle
         logger.Log("Training...")
         logger.Log("Model will use %s percent of SNLI data during training" %(self.alpha * 100))
 
         while True:
+            training_data = train_mnli + random.sample(train_snli, beta)
             random.shuffle(training_data)
             avg_cost = 0.
             total_batch = int(len(training_data) / self.batch_size)
@@ -141,6 +139,7 @@ class modelClassifier:
                     dev_acc_mismat, dev_cost_mismat = evaluate_classifier(self.classify, dev_mismat, self.batch_size)
                     dev_acc_snli, dev_cost_snli = evaluate_classifier(self.classify, dev_snli, self.batch_size)
                     train_acc, train_cost = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
+
                     logger.Log("Step: %i\t Dev-matched acc: %f\t Dev-mismatched acc: %f\t Dev-SNLI acc: %f\t Train acc: %f" %(self.step, dev_acc_mat, dev_acc_mismat, dev_acc_snli, train_acc))
                     logger.Log("Step: %i\t Dev-matched cost %f\t Dev-mismatched cost %f\t Dev-SNLI cost %f\t Train cost %f" %(self.step, dev_cost_mat, dev_cost_mismat, dev_cost_snli, train_cost))
 
@@ -186,6 +185,7 @@ class modelClassifier:
             self.sess = tf.Session()
             self.sess.run(self.init)
             self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
+            logger.Log("Model restored from file: %s" % best_path)
 
         total_batch = int(len(examples) / self.batch_size)
         logits = np.empty(3)

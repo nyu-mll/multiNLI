@@ -2,15 +2,17 @@ import tensorflow as tf
 import os
 import importlib
 from util import logger
-import util.parameters
+import util.parameters as params
 from util.data_processing import *
 from util.evaluate import evaluate_classifier
 
-FIXED_PARAMETERS = parameters.load_parameters()
+FIXED_PARAMETERS = params.load_parameters()
 modname = FIXED_PARAMETERS["model_name"]
+
 logpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".log"
 logger = logger.Logger(logpath)
 
+#emb_train = params.emb_train()
 model = FIXED_PARAMETERS["model_type"]
 submodel = FIXED_PARAMETERS["model_subtype"]
 
@@ -25,9 +27,9 @@ logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 ######################### LOAD DATA #############################
 
 logger.Log("Loading data")
-training_set = load_nli_data(FIXED_PARAMETERS["training_data_path"])
-dev_set = load_nli_data(FIXED_PARAMETERS["dev_data_path"])
-test_set = load_nli_data(FIXED_PARAMETERS["test_data_path"])
+training_set = load_nli_data(FIXED_PARAMETERS["training_snli"])
+dev_set = load_nli_data(FIXED_PARAMETERS["dev_snli"])
+test_set = load_nli_data(FIXED_PARAMETERS["test_snli"])
 
 logger.Log("Loading embeddings")
 indices_to_words, word_indices = sentences_to_padded_index_sequences([training_set, dev_set, test_set])
@@ -43,11 +45,12 @@ class modelClassifier:
         self.embedding_dim = FIXED_PARAMETERS["word_embedding_dim"]
         self.dim = FIXED_PARAMETERS["hidden_embedding_dim"]
         self.batch_size = FIXED_PARAMETERS["batch_size"]
+        self.emb_train = FIXED_PARAMETERS["emb_train"]
         self.keep_rate = FIXED_PARAMETERS["keep_rate"]
         self.sequence_length = FIXED_PARAMETERS["seq_length"] 
 
         logger.Log("Building model from %s.py" %(submodel))
-        self.model = MyModel(seq_length=self.sequence_length, emb_dim=self.embedding_dim,  hidden_dim=self.dim, embeddings=loaded_embeddings)
+        self.model = MyModel(seq_length=self.sequence_length, emb_dim=self.embedding_dim,  hidden_dim=self.dim, embeddings=loaded_embeddings, emb_train=self.emb_train)
 
         # Perform gradient descent with Adam
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.model.total_cost)
@@ -153,9 +156,11 @@ class modelClassifier:
     def classify(self, examples):
         # This classifies a list of examples
         if examples == test_set:
+            best_path = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best"
             self.sess = tf.Session()
             self.sess.run(self.init)
-            self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
+            self.saver.restore(self.sess, best_path)
+            logger.Log("Model restored from file: %s" % best_path)
 
         total_batch = int(len(examples) / self.batch_size)
         logits = np.empty(3)
@@ -177,7 +182,7 @@ classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
 # Now either train the model and then run it on the test set or just load the best checkpoint 
 # and get accuracy on the test set. Default setting is to train the model.
 
-test = parameters.train_or_test()
+test = params.train_or_test()
 
 if test == False:
     classifier.train(training_set, dev_set)
