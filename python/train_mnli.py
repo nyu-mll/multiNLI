@@ -33,10 +33,12 @@ test_snli = load_nli_data2(FIXED_PARAMETERS["test_snli"])
 training_mnli = load_nli_data2(FIXED_PARAMETERS["training_mnli"])
 dev_matched = load_nli_data2(FIXED_PARAMETERS["dev_matched"])
 dev_mismatched = load_nli_data2(FIXED_PARAMETERS["dev_mismatched"])
+test_matched = load_nli_data2(FIXED_PARAMETERS["test_matched"])
+test_mismatched = load_nli_data2(FIXED_PARAMETERS["test_mismatched"])
 
 
 logger.Log("Loading embeddings")
-indices_to_words, word_indices = sentences_to_padded_index_sequences([training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli])
+indices_to_words, word_indices = sentences_to_padded_index_sequences([training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_matched, test_mismatched, test_snli])
 loaded_embeddings = loadEmebdding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
 
@@ -178,13 +180,11 @@ class modelClassifier:
 
     def classify(self, examples):
         # This classifies a list of examples
-        """
-        TODO: Add in multiNLI test set eventually.
-        """
-        if examples == test_snli:
+        if examples in test_sets:
+            best_path = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best"
             self.sess = tf.Session()
             self.sess.run(self.init)
-            self.saver.restore(self.sess, os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best")
+            self.saver.restore(self.sess, best_path)
             logger.Log("Model restored from file: %s" % best_path)
 
         total_batch = int(len(examples) / self.batch_size)
@@ -208,10 +208,13 @@ classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
 # and get accuracy on the test set. Default setting is to train the model.
 
 test = params.train_or_test()
+test_sets = [test_matched, test_mismatched, test_snli]
 
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
     logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 else:
+    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
     logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 
