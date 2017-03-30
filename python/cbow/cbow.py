@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class MyModel(object):
-    def __init__(self, seq_length, emb_dim, hidden_dim, embeddings):
+    def __init__(self, seq_length, emb_dim, hidden_dim, embeddings, emb_train):
         ## Define hyperparameters
         self.embedding_dim = emb_dim
         self.dim = hidden_dim
@@ -14,7 +14,7 @@ class MyModel(object):
         self.keep_rate_ph = tf.placeholder(tf.float32, [])
 
         ## Define remaning parameters 
-        self.E = tf.Variable(embeddings, trainable=True, name="emb")
+        self.E = tf.Variable(embeddings, trainable=emb_train, name="emb")
 
         self.W_0 = tf.Variable(tf.random_normal([self.embedding_dim * 4, self.dim], stddev=0.1), name="w0")
         self.b_0 = tf.Variable(tf.random_normal([self.dim], stddev=0.1), name="b0")

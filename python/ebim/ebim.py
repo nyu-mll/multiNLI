@@ -2,7 +2,7 @@ import tensorflow as tf
 from util import blocks
 
 class MyModel(object):
-    def __init__(self, seq_length, emb_dim, hidden_dim, embeddings):
+    def __init__(self, seq_length, emb_dim, hidden_dim, embeddings, emb_train):
         ## Define hyperparameters
         self.embedding_dim = emb_dim
         self.dim = hidden_dim
@@ -15,7 +15,7 @@ class MyModel(object):
         self.keep_rate_ph = tf.placeholder(tf.float32, [])
 
         ## Define parameters
-        self.E = tf.Variable(embeddings, trainable=False)
+        self.E = tf.Variable(embeddings, trainable=emb_train)
         
         self.W_mlp = tf.Variable(tf.random_normal([self.dim * 8, self.dim], stddev=0.1))
         self.b_mlp = tf.Variable(tf.random_normal([self.dim], stddev=0.1))

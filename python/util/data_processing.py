@@ -5,10 +5,9 @@ import random
 import json
 import collections
 import numpy as np
+import parameters as params
 
-import parameters
-
-FIXED_PARAMETERS = parameters.load_parameters()
+FIXED_PARAMETERS = params.load_parameters()
 
 LABEL_MAP = {
     "entailment": 0,
