@@ -33,7 +33,7 @@ test_set = load_nli_data(FIXED_PARAMETERS["test_snli"])
 
 logger.Log("Loading embeddings")
 indices_to_words, word_indices = sentences_to_padded_index_sequences([training_set, dev_set, test_set])
-loaded_embeddings = loadEmebdding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
+loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
 
 class modelClassifier:
