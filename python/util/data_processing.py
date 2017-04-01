@@ -1,4 +1,3 @@
-
 import numpy as np
 import re
 import random
@@ -19,7 +18,7 @@ PADDING = "<PAD>"
 #UNKNOWN = "<UNK>"
 
 
-def load_nli_data(path):
+'''def load_nli_data(path):
     """
     Load NLI data, formatted for SNLI.
     """
@@ -34,9 +33,9 @@ def load_nli_data(path):
         random.seed(1) ### Do we want to shuffle this data?
         random.shuffle(data)
     return data
+'''
 
-
-def load_nli_data2(path, snli=False):
+def load_nli_data(path, snli=False):
     """
     Load MultiNLI and SNLI data.
     """
@@ -103,7 +102,7 @@ def sentences_to_padded_index_sequences(datasets):
 
 
 
-def loadEmebdding_zeros(path, word_indices):
+def loadEmbedding_zeros(path, word_indices):
     """
     Load GloVe embeddings. Initializng OOV to 0.
     """
@@ -121,7 +120,7 @@ def loadEmebdding_zeros(path, word_indices):
     return emb
 
 
-def loadEmebdding_rand(path, word_indices):
+def loadEmbedding_rand(path, word_indices):
     """
     Load GloVe embeddings. Doing a random normal nitialization for OOV.
     """
