@@ -41,8 +41,6 @@ logger.Log("Loading embeddings")
 indices_to_words, word_indices = sentences_to_padded_index_sequences([training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_matched, test_mismatched, test_snli])
 loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
-print np.shape(loaded_embeddings)
-
 class modelClassifier:
     def __init__(self, seq_length):
         ## Define hyperparameters
@@ -87,17 +85,10 @@ class modelClassifier:
         self.best_dev_mat = 0.
         self.best_dev_mismat = 0.
         self.best_dev_snli = 0.
-        self.best_train_acc = 0.
+        self.best_mtrain_acc = 0.
+        self.best_strain_acc = 0.
         self.last_train_acc = [.001, .001, .001, .001, .001]
-        self.best_epoch = 0
-
-
-        # Combine MultiNLI and SNLI data. Alpha has a default value of 0, if we want to use SNLI data, it must be passed as an argument.
-        beta = int(self.alpha * len(train_snli))
-
-        # Training data that will be used for evaluation,
-        training_data_t = train_mnli + train_snli[:beta]
-        random.shuffle(training_data_t)
+        self.best_step = 0
 
         # Restore best-checkpoint if it exists
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
@@ -107,13 +98,18 @@ class modelClassifier:
                 self.best_dev_mat, dev_cost_mat = evaluate_classifier(self.classify, dev_mat, self.batch_size)
                 self.best_dev_mismat, dev_cost_mismat = evaluate_classifier(self.classify, dev_mismat, self.batch_size)
                 self.best_dev_snli, dev_cost_snli = evaluate_classifier(self.classify, dev_snli, self.batch_size)
-                self.best_train_acc, train_cost = evaluate_classifier(self.classify, training_data_t[0:5000], self.batch_size)
-                
-                logger.Log("Restored best matched-dev acc: %f\n Restored best mismatched-dev acc: %f\n Restored best SNLI-dev acc: %f\n Restored best train acc: %f" %(self.best_dev_mat, self.best_dev_mismat, self.best_dev_snli, self.best_train_acc))
+                self.best_mtrain_acc, mtrain_cost = evaluate_classifier(self.classify, train_mnli[0:5000], self.batch_size)
+                if self.alpha != 0.:
+                    self.best_strain_acc, strain_cost = evaluate_classifier(self.classify, train_snli[0:5000], self.batch_size)
+                    logger.Log("Restored best matched-dev acc: %f\n Restored best mismatched-dev acc: %f\n Restored best SNLI-dev acc: %f\n Restored best MulitNLI train acc: %f\n Restored best SNLI train acc: %f" %(self.best_dev_mat, self.best_dev_mismat, self.best_dev_snli,  self.best_mtrain_acc,  self.best_strain_acc))
+                else:
+                    logger.Log("Restored best matched-dev acc: %f\n Restored best mismatched-dev acc: %f\n Restored best SNLI-dev acc: %f\n Restored best MulitNLI train acc: %f" %(self.best_dev_mat, self.best_dev_mismat, self.best_dev_snli, self.best_mtrain_acc))
 
             self.saver.restore(self.sess, ckpt_file)
             logger.Log("Model restored from file: %s" % ckpt_file)
 
+        # Combine MultiNLI and SNLI data. Alpha has a default value of 0, if we want to use SNLI data, it must be passed as an argument.
+        beta = int(self.alpha * len(train_snli))
 
         ### Training cycle
         logger.Log("Training...")
@@ -145,10 +141,15 @@ class modelClassifier:
                     dev_acc_mat, dev_cost_mat = evaluate_classifier(self.classify, dev_mat, self.batch_size)
                     dev_acc_mismat, dev_cost_mismat = evaluate_classifier(self.classify, dev_mismat, self.batch_size)
                     dev_acc_snli, dev_cost_snli = evaluate_classifier(self.classify, dev_snli, self.batch_size)
-                    train_acc, train_cost = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
+                    mtrain_acc, mtrain_cost = evaluate_classifier(self.classify, train_mnli[0:5000], self.batch_size)
 
-                    logger.Log("Step: %i\t Dev-matched acc: %f\t Dev-mismatched acc: %f\t Dev-SNLI acc: %f\t Train acc: %f" %(self.step, dev_acc_mat, dev_acc_mismat, dev_acc_snli, train_acc))
-                    logger.Log("Step: %i\t Dev-matched cost %f\t Dev-mismatched cost %f\t Dev-SNLI cost %f\t Train cost %f" %(self.step, dev_cost_mat, dev_cost_mismat, dev_cost_snli, train_cost))
+                    if self.alpha != 0.:
+                        strain_acc, strain_cost = evaluate_classifier(self.classify, train_snli[0:5000], self.batch_size)
+                        logger.Log("Step: %i\t Dev-matched acc: %f\t Dev-mismatched acc: %f\t Dev-SNLI acc: %f\t MultiNLI train acc: %f\t SNLI train acc: %f" %(self.step, dev_acc_mat, dev_acc_mismat, dev_acc_snli, mtrain_acc, strain_acc))
+                        logger.Log("Step: %i\t Dev-matched cost: %f\t Dev-mismatched cost: %f\t Dev-SNLI cost: %f\t MultiNLI train cost: %f\t SNLI train cost: %f" %(self.step, dev_cost_mat, dev_cost_mismat, dev_cost_snli, mtrain_cost, strain_cost))
+                    else:
+                        logger.Log("Step: %i\t Dev-matched acc: %f\t Dev-mismatched acc: %f\t Dev-SNLI acc: %f\t MultiNLI train acc: %f" %(self.step, dev_acc_mat, dev_acc_mismat, dev_acc_snli, mtrain_acc))
+                        logger.Log("Step: %i\t Dev-matched cost: %f\t Dev-mismatched cost: %f\t Dev-SNLI cost: %f\t MultiNLI train cost: %f" %(self.step, dev_cost_mat, dev_cost_mismat, dev_cost_snli, mtrain_cost))
 
                 if self.step % 500 == 0:
                     self.saver.save(self.sess, ckpt_file)
@@ -158,8 +159,9 @@ class modelClassifier:
                         self.best_dev_mat = dev_acc_mat
                         self.best_dev_mismat = dev_acc_mismat
                         self.best_dev_snli = dev_acc_snli
-                        self.best_train_acc = train_acc
-                        self.best_epoch = self.epoch
+                        self.best_mtrain_acc = mtrain_acc
+                        self.best_strain_acc = strain_acc
+                        self.best_step = self.step
                         logger.Log("Checkpointing with new best matched-dev accuracy: %f" %(self.best_dev_mat))
 
                 self.step += 1
@@ -173,14 +175,14 @@ class modelClassifier:
                 logger.Log("Epoch: %i\t Avg. Cost: %f" %(self.epoch+1, avg_cost))
             
             self.epoch += 1 
-            self.last_train_acc[(self.epoch % 5) - 1] = train_acc
+            self.last_train_acc[(self.epoch % 5) - 1] = mtrain_acc
 
             # Early stopping
             progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
 
-            if (progress < 0.1) or (self.epoch > self.best_epoch + 10):
+            if (progress < 0.1) or (self.epoch > self.best_step + 15000):
                 logger.Log("Best matched-dev accuracy: %s" %(self.best_dev_mat))
-                logger.Log("Train accuracy: %s" %(self.best_train_acc))
+                logger.Log("MultiNLI Train accuracy: %s" %(self.best_mtrain_acc))
                 break
 
     def classify(self, examples):
@@ -217,10 +219,11 @@ test_sets = [test_matched, test_mismatched, test_snli]
 
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
-    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
-else:
-    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
     logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
     logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
-    #logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
+else:
+    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 

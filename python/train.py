@@ -79,7 +79,7 @@ class modelClassifier:
         self.best_dev_acc = 0.
         self.best_train_acc = 0.
         self.last_train_acc = [.001, .001, .001, .001, .001]
-        self.best_epoch = 0
+        self.best_step = 0
 
         # Restore best-checkpoint if it exists
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
@@ -129,7 +129,7 @@ class modelClassifier:
                         self.saver.save(self.sess, ckpt_file + "_best")
                         self.best_dev_acc = dev_acc
                         self.best_train_acc = train_acc
-                        self.best_epoch = self.epoch
+                        self.best_step= self.step
                         logger.Log("Checkpointing with new best dev accuracy: %f" %(self.best_dev_acc))
 
                 self.step += 1
@@ -148,7 +148,7 @@ class modelClassifier:
             # Early stopping
             progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
 
-            if (progress < 0.1) or (self.epoch > self.best_epoch + 10):
+            if (progress < 0.1) or (self.epoch > self.best_step + 25000):
                 logger.Log("Best dev accuracy: %s" %(self.best_dev_acc))
                 logger.Log("Train accuracy: %s" %(self.best_train_acc))
                 break
