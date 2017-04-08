@@ -55,7 +55,7 @@ def load_parameters():
         "embeddings_to_load": args.emb_to_load,
         "word_embedding_dim": 300,
         "hidden_embedding_dim": 300,
-        "seq_length": 25,
+        "seq_length": 50,
         "keep_rate": args.keep_rate, 
         "batch_size": 32,
         "learning_rate": args.learning_rate,
