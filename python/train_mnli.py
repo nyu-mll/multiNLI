@@ -160,7 +160,8 @@ class modelClassifier:
                         self.best_dev_mismat = dev_acc_mismat
                         self.best_dev_snli = dev_acc_snli
                         self.best_mtrain_acc = mtrain_acc
-                        self.best_strain_acc = strain_acc
+                        if self.alpha != 0.:
+                            self.best_strain_acc = strain_acc
                         self.best_step = self.step
                         logger.Log("Checkpointing with new best matched-dev accuracy: %f" %(self.best_dev_mat))
 
