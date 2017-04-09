@@ -5,7 +5,7 @@ import random
 from util import logger
 import util.parameters as params
 from util.data_processing import *
-from util.evaluate import evaluate_classifier
+from util.evaluate import *
 
 FIXED_PARAMETERS = params.load_parameters()
 modname = FIXED_PARAMETERS["model_name"]
@@ -26,9 +26,9 @@ logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 ######################### LOAD DATA #############################
 
 logger.Log("Loading data")
-training_snli = load_nli_data(FIXED_PARAMETERS["training_snli"])
-dev_snli = load_nli_data(FIXED_PARAMETERS["dev_snli"])
-test_snli = load_nli_data(FIXED_PARAMETERS["test_snli"])
+training_snli = load_nli_data(FIXED_PARAMETERS["training_snli"], snli=True)
+dev_snli = load_nli_data(FIXED_PARAMETERS["dev_snli"], snli=True)
+test_snli = load_nli_data(FIXED_PARAMETERS["test_snli"], snli=True)
 
 training_mnli = load_nli_data(FIXED_PARAMETERS["training_mnli"])
 dev_matched = load_nli_data(FIXED_PARAMETERS["dev_matched"])
@@ -72,8 +72,9 @@ class modelClassifier:
         indices = range(start_index, end_index)
         premise_vectors = np.vstack([dataset[i]['sentence1_binary_parse_index_sequence'] for i in indices])
         hypothesis_vectors = np.vstack([dataset[i]['sentence2_binary_parse_index_sequence'] for i in indices])
+        genres = [dataset[i]['genre'] for i in indices]
         labels = [dataset[i]['label'] for i in indices]
-        return premise_vectors, hypothesis_vectors, labels
+        return premise_vectors, hypothesis_vectors, labels, genres
 
 
     def train(self, train_mnli, train_snli, dev_mat, dev_mismat, dev_snli):        
@@ -124,7 +125,7 @@ class modelClassifier:
             # Loop over all batches in epoch
             for i in range(total_batch):
                 # Assemble a minibatch of the next B examples
-                minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels= self.get_minibatch(
+                minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels, minibatch_genres = self.get_minibatch(
                     training_data, self.batch_size * i, self.batch_size * (i + 1))
                 
                 # Run the optimizer to take a gradient step, and also fetch the value of the 
@@ -197,17 +198,19 @@ class modelClassifier:
 
         total_batch = int(len(examples) / self.batch_size)
         logits = np.empty(3)
+        genres = []
         for i in range(total_batch):
-            minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels = self.get_minibatch(
+            minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels, minibatch_genres = self.get_minibatch(
                 examples, self.batch_size * i, self.batch_size * (i + 1))
             feed_dict = {self.model.premise_x: minibatch_premise_vectors, 
                                 self.model.hypothesis_x: minibatch_hypothesis_vectors,
                                 self.model.y: minibatch_labels, 
                                 self.model.keep_rate_ph: 1.0}
+            genres += minibatch_genres
             logit, cost = self.sess.run([self.model.logits, self.model.total_cost], feed_dict)
             logits = np.vstack([logits, logit])
 
-        return np.argmax(logits[1:], axis=1), cost
+        return genres, np.argmax(logits[1:], axis=1), cost
 
 
 classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
@@ -224,7 +227,11 @@ if test == False:
     logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
     logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 else:
-    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
-    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
-    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"])[0]))
+    # Results by genre,
+    logger.Log("Test acc on matched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Test acc on mismatched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+  
 

@@ -17,24 +17,6 @@ LABEL_MAP = {
 PADDING = "<PAD>"
 #UNKNOWN = "<UNK>"
 
-
-'''def load_nli_data(path):
-    """
-    Load NLI data, formatted for SNLI.
-    """
-    data = []
-    with open(path) as f:
-        for line in f:
-            loaded_example = json.loads(line)
-            if loaded_example["gold_label"] not in LABEL_MAP:
-                continue
-            loaded_example["label"] = LABEL_MAP[loaded_example["gold_label"]]
-            data.append(loaded_example)
-        random.seed(1) ### Do we want to shuffle this data?
-        random.shuffle(data)
-    return data
-'''
-
 def load_nli_data(path, snli=False):
     """
     Load MultiNLI and SNLI data.
