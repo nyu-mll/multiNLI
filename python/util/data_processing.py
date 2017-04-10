@@ -35,6 +35,25 @@ def load_nli_data(path, snli=False):
         random.shuffle(data)
     return data
 
+def load_nli_data_genre(path, genre, snli=False):
+    """
+    Load MultiNLI and SNLI data.
+    """
+    data = []
+    with open(path) as f:
+        for line in f:
+            loaded_example = json.loads(line)
+            if loaded_example["gold_label"] not in LABEL_MAP:
+                continue
+            loaded_example["label"] = LABEL_MAP[loaded_example["gold_label"]]
+            if snli:
+                loaded_example["genre"] = "snli"
+            if loaded_example["genre"] == genre:
+                data.append(loaded_example)
+        random.seed(1)
+        random.shuffle(data)
+    return data
+
 
 
 def sentences_to_padded_index_sequences(datasets):

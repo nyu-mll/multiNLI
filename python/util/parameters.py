@@ -16,6 +16,13 @@ def subtypes(s):
         return options[0]
     return s
 
+genres = ['travel', 'fiction', 'slate', 'telephone', 'government']
+def subtypes(s):
+    options = [mod for mod in genres if s in genres]
+    if len(options) == 1:
+        return options[0]
+    return s
+
 parser.add_argument("model_type", choices=models, type=types, help="Give model type.")
 parser.add_argument("model_subtype", choices=model_sub, type=subtypes, help="Give model subtype")
 parser.add_argument("model_name", type=str, help="Give model name, this will name logs and checkpoints made. For example cbow, ebim2 etc.")
@@ -29,6 +36,7 @@ parser.add_argument("--emb_to_load", type=int, default=None, help="Number of emb
 parser.add_argument("--learning_rate", type=float, default=0.0004, help="Learning rate for model")
 parser.add_argument("--keep_rate", type=float, default=0.5, help="Keep rate for dropout in the model")
 parser.add_argument("--alpha", type=float, default=0., help="What percentage of SNLI data to use in training")
+parser.add_argument("--genre", type=str, help="Which genre to train on")
 
 parser.add_argument("--emb_train", action='store_true', help="Call if you want to make your word embeddings trainable.")
 parser.add_argument("--test", action='store_true', help="Call if you want to only test on the best checkpoint.")
@@ -60,7 +68,8 @@ def load_parameters():
         "batch_size": 32,
         "learning_rate": args.learning_rate,
         "emb_train": args.emb_train,
-        "alpha": args.alpha
+        "alpha": args.alpha,
+        "genre": args.genre
     }
 
     return FIXED_PARAMETERS
