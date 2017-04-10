@@ -60,7 +60,6 @@ def sentences_to_padded_index_sequences(datasets):
     """
     Annotate datasets with feature vectors. Adding right-sided padding. 
     """
-    
     # Extract vocabulary
     def tokenize(string):
         string = re.sub(r'\(|\)', '', string)
@@ -111,8 +110,9 @@ def loadEmbedding_zeros(path, word_indices):
     
     with open(path, 'r') as f:
         for i, line in enumerate(f):
-            if i >= FIXED_PARAMETERS["embeddings_to_load"]: 
-                break
+            if FIXED_PARAMETERS["embeddings_to_load"] != None:
+                if i >= FIXED_PARAMETERS["embeddings_to_load"]:
+                    break
             
             s = line.split()
             if s[0] in word_indices:
