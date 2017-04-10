@@ -30,6 +30,7 @@ training_snli = load_nli_data(FIXED_PARAMETERS["training_snli"], snli=True)
 dev_snli = load_nli_data(FIXED_PARAMETERS["dev_snli"], snli=True)
 test_snli = load_nli_data(FIXED_PARAMETERS["test_snli"], snli=True)
 
+
 training_mnli = load_nli_data(FIXED_PARAMETERS["training_mnli"])
 dev_matched = load_nli_data(FIXED_PARAMETERS["dev_matched"])
 dev_mismatched = load_nli_data(FIXED_PARAMETERS["dev_mismatched"])
@@ -182,7 +183,7 @@ class modelClassifier:
             # Early stopping
             progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
 
-            if (progress < 0.1) or (self.epoch > self.best_step + 15000):
+            if (progress < 0.1) or (self.step > self.best_step + 30000):
                 logger.Log("Best matched-dev accuracy: %s" %(self.best_dev_mat))
                 logger.Log("MultiNLI Train accuracy: %s" %(self.best_mtrain_acc))
                 break
@@ -234,4 +235,3 @@ else:
     logger.Log("Test acc on matched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on mismatched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
   
-

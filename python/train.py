@@ -148,7 +148,7 @@ class modelClassifier:
             # Early stopping
             progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
 
-            if (progress < 0.1) or (self.epoch > self.best_step + 25000):
+            if (progress < 0.1) or (self.step > self.best_step + 25000):
                 logger.Log("Best dev accuracy: %s" %(self.best_dev_acc))
                 logger.Log("Train accuracy: %s" %(self.best_train_acc))
                 break
