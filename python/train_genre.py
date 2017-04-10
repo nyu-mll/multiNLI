@@ -185,7 +185,7 @@ class modelClassifier:
             # Early stopping
             progress = 1000 * (sum(self.last_train_acc)/(5 * min(self.last_train_acc)) - 1) 
 
-            if (progress < 0.1) or (self.epoch > self.best_step + 15000):
+            if (progress < 0.1) or (self.step > self.best_step + 10000):
                 logger.Log("Best matched-dev accuracy: %s" %(self.best_dev))
                 logger.Log("MultiNLI Train accuracy: %s" %(self.best_mtrain_acc))
                 break
@@ -222,7 +222,6 @@ classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
 # and get accuracy on the test set. Default setting is to train the model.
 
 test = params.train_or_test()
-#test_sets = [test_matched, test_mismatched, test_snli]
 test_sets = [test_matched, test_mismatched]
 
 if test == False:
