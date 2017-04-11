@@ -26,7 +26,7 @@ logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 ######################### LOAD DATA #############################
 
 logger.Log("Loading data")
-genres = ['travel', 'fiction', 'slate', 'telephone', 'government']
+genres = ['travel', 'fiction', 'slate', 'telephone', 'government', 'snli']
 
 alpha = FIXED_PARAMETERS["alpha"]
 genre = FIXED_PARAMETERS["genre"]
