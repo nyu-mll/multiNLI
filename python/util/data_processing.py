@@ -35,7 +35,7 @@ def load_nli_data(path, snli=False):
         random.shuffle(data)
     return data
 
-def load_nli_data_genre(path, genre, snli=False):
+def load_nli_data_genre(path, genre, snli=True):
     """
     Load MultiNLI and SNLI data.
     """
