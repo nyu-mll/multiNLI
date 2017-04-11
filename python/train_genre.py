@@ -39,11 +39,11 @@ else:
     logger.Log("Training on %s genre" %(genre))
 
 if genre == "snli":
-    beta = int(550152 * alpha) # hard coded length of SNLI. Change this.
     training_data = load_nli_data_genre(FIXED_PARAMETERS["training_snli"], genre)
+    beta = int(len(training_data) * alpha)
     training_data = random.sample(training_data, beta)
 else:
-    training_data = load_nli_data_genre(FIXED_PARAMETERS["training_mnli"], genre)
+    training_data = load_nli_data_genre(FIXED_PARAMETERS["training_mnli"], genre, snli=True)
 
 dev_snli = load_nli_data(FIXED_PARAMETERS["dev_snli"], snli=True)
 test_snli = load_nli_data(FIXED_PARAMETERS["test_snli"], snli=True)
@@ -113,8 +113,12 @@ class modelClassifier:
         if os.path.isfile(ckpt_file + ".meta"):
             if os.path.isfile(ckpt_file + "_best.meta"):
                 self.saver.restore(self.sess, (ckpt_file + "_best"))
-                best_dev_mat, dev_cost_mat = evaluate_classifier_genre(self.classify, dev_mat, self.batch_size)
-                self.best_dev = best_dev_mat[genre]
+                if genre == 'snli':
+                    dev_acc, dev_cost_snli = evaluate_classifier(self.classify, dev_snli, self.batch_size)
+                    self.best_dev = dev_acc
+                else:
+                    best_dev_mat, dev_cost_mat = evaluate_classifier_genre(self.classify, dev_mat, self.batch_size)
+                    self.best_dev = best_dev_mat[genre]
                 self.best_mtrain_acc, mtrain_cost = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
 
                 logger.Log("Restored best dev acc: %f\n Restored best train acc: %f" %(self.best_dev, self.best_mtrain_acc))
@@ -122,8 +126,6 @@ class modelClassifier:
             self.saver.restore(self.sess, ckpt_file)
             logger.Log("Model restored from file: %s" % ckpt_file)
 
-        # Combine MultiNLI and SNLI data. Alpha has a default value of 0, if we want to use SNLI data, it must be passed as an argument.
-        #beta = int(self.alpha * len(train_snli))
 
         ### Training cycle
         logger.Log("Training...")
@@ -151,7 +153,10 @@ class modelClassifier:
                 # accuracy every 50 steps
                 if self.step % self.display_step_freq == 0:
                     dev_acc_mat, dev_cost_mat = evaluate_classifier_genre(self.classify, dev_mat, self.batch_size)
-                    dev_acc = dev_acc_mat[genre]
+                    if genre == 'snli':
+                        dev_acc, dev_cost_snli = evaluate_classifier(self.classify, dev_snli, self.batch_size)
+                    else:
+                        dev_acc = dev_acc_mat[genre]
                     dev_acc_mismat, dev_cost_mismat = evaluate_classifier_genre(self.classify, dev_mismat, self.batch_size)
                     dev_acc_snli, dev_cost_snli = evaluate_classifier(self.classify, dev_snli, self.batch_size)
                     mtrain_acc, mtrain_cost = evaluate_classifier(self.classify, training_data[0:5000], self.batch_size)
