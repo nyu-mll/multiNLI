@@ -35,11 +35,12 @@ def load_nli_data(path, snli=False):
         random.shuffle(data)
     return data
 
-def load_nli_data_genre(path, genre, snli=True):
+def load_nli_data_genre(path, genre, snli=False):
     """
     Load MultiNLI and SNLI data.
     """
     data = []
+    j = 0
     with open(path) as f:
         for line in f:
             loaded_example = json.loads(line)

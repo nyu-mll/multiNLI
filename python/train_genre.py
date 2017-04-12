@@ -39,11 +39,11 @@ else:
     logger.Log("Training on %s genre" %(genre))
 
 if genre == "snli":
-    training_data = load_nli_data_genre(FIXED_PARAMETERS["training_snli"], genre)
+    training_data = load_nli_data_genre(FIXED_PARAMETERS["training_snli"], genre, snli=True)
     beta = int(len(training_data) * alpha)
     training_data = random.sample(training_data, beta)
 else:
-    training_data = load_nli_data_genre(FIXED_PARAMETERS["training_mnli"], genre, snli=True)
+    training_data = load_nli_data_genre(FIXED_PARAMETERS["training_mnli"], genre, snli=False)
 
 dev_snli = load_nli_data(FIXED_PARAMETERS["dev_snli"], snli=True)
 test_snli = load_nli_data(FIXED_PARAMETERS["test_snli"], snli=True)
