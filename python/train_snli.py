@@ -104,7 +104,7 @@ class modelClassifier:
 
             self.saver.restore(self.sess, ckpt_file)
             logger.Log("Model restored from file: %s" % ckpt_file)
-            
+
         training_data = train_snli
 
         ### Training cycle
@@ -142,7 +142,7 @@ class modelClassifier:
 
                 if self.step % 500 == 0:
                     self.saver.save(self.sess, ckpt_file)
-                    best_test = 100 * (1 - self.best_dev_mat / dev_acc_mat)
+                    best_test = 100 * (1 - self.best_dev_snli / dev_acc_snli)
                     if best_test > 0.04:
                         self.saver.save(self.sess, ckpt_file + "_best")
                         self.best_dev_mat = dev_acc_mat
