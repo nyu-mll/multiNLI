@@ -9,7 +9,7 @@ def types(s):
         return options[0]
     return s
 
-model_sub = ['ebim', 'ebim_noAvgPool', 'ebim_noDiffMul', 'ebim_noInfBiLSTM', 'bilstm', 'bilstm_attn', 'cbow_2layer', 'cbow']
+model_sub = ['ebim', 'ebim_noAvgPool', 'ebim_noDiffMul', 'ebim_noInfBiLSTM', 'bilstm', 'bilstm_meanpool', 'cbow_2layer', 'cbow']
 def subtypes(s):
     options = [mod for mod in model_sub if s in model_sub]
     if len(options) == 1:
@@ -30,6 +30,7 @@ parser.add_argument("model_name", type=str, help="Give model name, this will nam
 parser.add_argument("--data_type", type=str, default="snli", help="Give dataset name, example snli, multiNLI etc.")
 
 parser.add_argument("--datapath", type=str, default="../data")
+parser.add_argument("--ckptpath", type=str, default="../logs")
 parser.add_argument("--logpath", type=str, default="../logs")
 
 parser.add_argument("--emb_to_load", type=int, default=None, help="Number of embeddings to load")
@@ -59,7 +60,7 @@ def load_parameters():
         "test_snli": "{}/snli_1.0/snli_1.0_test.jsonl".format(args.datapath),
         "embedding_data_path": "{}/glove.840B.300d.txt".format(args.datapath),
         "log_path": "{}".format(args.logpath),
-        "ckpt_path":  "{}".format(args.logpath),
+        "ckpt_path":  "{}".format(args.ckptpath),
         "embeddings_to_load": args.emb_to_load,
         "word_embedding_dim": 300,
         "hidden_embedding_dim": 300,
