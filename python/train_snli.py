@@ -150,7 +150,7 @@ class modelClassifier:
                         self.best_dev_snli = dev_acc_snli
                         self.best_strain_acc = strain_acc
                         self.best_step = self.step
-                        logger.Log("Checkpointing with new best matched-dev accuracy: %f" %(self.best_dev_snli))
+                        logger.Log("Checkpointing with new best SNLI-dev accuracy: %f" %(self.best_dev_snli))
 
                 self.step += 1
 
@@ -213,9 +213,9 @@ if test == False:
     logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
     logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 else:
+    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"])[0]))
     # Results by genre,
     logger.Log("Test acc on matched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on mismatched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
