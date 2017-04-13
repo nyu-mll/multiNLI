@@ -47,6 +47,12 @@ class MyModel(object):
         premise_final = blocks.last_output(premise_bi, prem_seq_lengths)
         hypothesis_final =  blocks.last_output(hypothesis_bi, hyp_seq_lengths)
 
+        ### Mean pooling
+        premise_sum = tf.reduce_sum(premise_bi, 1)
+        premise_ave = tf.div(premise_sum, tf.expand_dims(tf.cast(prem_seq_lengths, tf.float32), -1))
+
+        hypothesis_sum = tf.reduce_sum(hypothesis_bi, 1)
+        hypothesis_ave = tf.div(hypothesis_sum, tf.expand_dims(tf.cast(hyp_seq_lengths, tf.float32), -1))
 
         ### Mou et al. concat layer ###
         diff = tf.subtract(premise_final, hypothesis_final)
