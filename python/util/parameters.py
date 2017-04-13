@@ -36,6 +36,7 @@ parser.add_argument("--logpath", type=str, default="../logs")
 parser.add_argument("--emb_to_load", type=int, default=None, help="Number of embeddings to load")
 parser.add_argument("--learning_rate", type=float, default=0.0004, help="Learning rate for model")
 parser.add_argument("--keep_rate", type=float, default=0.5, help="Keep rate for dropout in the model")
+parser.add_argument("--seq_length", type=int, default=50, help="Max sequence length")
 parser.add_argument("--alpha", type=float, default=0., help="What percentage of SNLI data to use in training")
 parser.add_argument("--genre", type=str, help="Which genre to train on")
 
@@ -64,7 +65,7 @@ def load_parameters():
         "embeddings_to_load": args.emb_to_load,
         "word_embedding_dim": 300,
         "hidden_embedding_dim": 300,
-        "seq_length": 50,
+        "seq_length": args.seq_length,
         "keep_rate": args.keep_rate, 
         "batch_size": 32,
         "learning_rate": args.learning_rate,

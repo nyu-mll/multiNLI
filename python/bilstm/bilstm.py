@@ -44,8 +44,8 @@ class MyModel(object):
         premise_bi = tf.concat(premise_outs, axis=2)
         hypothesis_bi = tf.concat(hypothesis_outs, axis=2)
 
-        premise_final = blocks.last_output(premise_bi, prem_seq_lengths)
-        hypothesis_final =  blocks.last_output(hypothesis_bi, hyp_seq_lengths)
+        #premise_final = blocks.last_output(premise_bi, prem_seq_lengths)
+        #hypothesis_final =  blocks.last_output(hypothesis_bi, hyp_seq_lengths)
 
         ### Mean pooling
         premise_sum = tf.reduce_sum(premise_bi, 1)
@@ -55,9 +55,9 @@ class MyModel(object):
         hypothesis_ave = tf.div(hypothesis_sum, tf.expand_dims(tf.cast(hyp_seq_lengths, tf.float32), -1))
 
         ### Mou et al. concat layer ###
-        diff = tf.subtract(premise_final, hypothesis_final)
-        mul = tf.multiply(premise_final, hypothesis_final)
-        h = tf.concat([premise_final, hypothesis_final, diff, mul], 1)
+        diff = tf.subtract(premise_ave, hypothesis_ave)
+        mul = tf.multiply(premise_ave, hypothesis_ave)
+        h = tf.concat([premise_ave, hypothesis_ave, diff, mul], 1)
 
         # MLP layer
         h_mlp = tf.nn.relu(tf.matmul(h, self.W_mlp) + self.b_mlp)
