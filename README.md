@@ -24,11 +24,11 @@ Optional flags,
 - `datapath`:
 - `ckptpath`:
 - `logpath`:
-- `emb\_to\_load`:
-- `learning\_rate`:
-- `keep\_rate`:
-- `seq\_length`:
-- `emb\_train`:
+- `emb_to_load`:
+- `learning_rate`:
+- `keep_rate`:
+- `seq_length`:
+- `emb_train`:
 - `genre`:
 - `alpha`:
 - `test`:

@@ -1,20 +1,20 @@
 '''
 Example command to run:
-PYTHONPATH=. python analysis/attn_plots.py ebim ebim --datapath ./data --logpath ./logs
+PYTHONPATH=. python analysis/attn_plots.py ebim ebim ebim-expt2 --datapath ./data --logpath ./logs
 '''
 
 import tensorflow as tf
 import os
-import python.util.parameters
-from python.util.data_processing import *
-from python.util.evaluate import evaluate_classifier
+import util.parameters
+from util.data_processing import *
+from util.evaluate import evaluate_classifier
 import matplotlib.pyplot as plt
 
 
 FIXED_PARAMETERS = parameters.load_parameters()
 
 if FIXED_PARAMETERS["model_type"] == 'ebim':
-    from python.ebim.ebim import MyModel
+    from ebim.ebim import MyModel
 else:
     assert (FIXED_PARAMETERS["model_type"] != 'ebim'), \
        'Give a valid model that uses attention.'
@@ -73,6 +73,7 @@ class modelClassifier:
                                                 self.model.hypothesis_x: hypothesis_vectors,
                                                 self.model.keep_rate_ph: 1.0}
         alpha_weights, beta_weights, logit = self.sess.run([self.model.alpha_s, self.model.beta_s, self.model.logits],feed_dict=feed_dict)
+
         logits = np.vstack([logits, logit])
         return np.reshape(alpha_weights, [len(examples), 25, 25]), np.reshape(beta_weights, [len(examples), 25, 25]), np.argmax(logits[1:], axis=1)
         
@@ -111,7 +112,7 @@ class modelClassifier:
                 ax.set_xlabel('True label: %s, Predicted label: %s' %(true, prediction[i]))
                 ax.set_title('Plotting %s weights' %s)
                 plt.tight_layout()
-                #plt.savefig('./attn_plots' + modname + '_' + s + str(i) + ".png")
+                #plt.savefig('../attn_plots/' + modname + '_' + s + str(i) + "_2.png")
                 plt.show()
 
 
@@ -121,5 +122,10 @@ classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
 #        classifier.get_attn(training_set[0:3])[0, :, :]).all(), \
 #       'Warning: There is cross-example information flow.'
 
-classifier.plot_attn(training_set[0:5])
+import numpy as np
+
+num_plots = 5
+cur = np.random.random_integers(0, len(training_set))
+
+classifier.plot_attn(training_set[0:3])
 

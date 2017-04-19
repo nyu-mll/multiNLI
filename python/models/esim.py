@@ -124,12 +124,7 @@ class MyModel(object):
         v_2_max = tf.reduce_max(v2_bi, 1)
 
         v = tf.concat([v_1_ave, v_2_ave, v_1_max, v_2_max], 1)
-
-
-        ### TreeLSTM ###
-        '''
-        TODO: Build pseudo-treeLSTM and run it through all subsequent functions 
-        '''
+        
 
         # MLP layer
         h_mlp = tf.nn.tanh(tf.matmul(v, self.W_mlp) + self.b_mlp)
