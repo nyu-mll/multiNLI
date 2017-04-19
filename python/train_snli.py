@@ -1,3 +1,7 @@
+"""
+Training script to train a model on only SNLI data. MultiNLI data is loaded into the embeddings enabling us to test the model on MultiNLI data.
+"""
+
 import tensorflow as tf
 import os
 import importlib
@@ -19,7 +23,7 @@ module = importlib.import_module(".".join([model, submodel]))
 MyModel = getattr(module, 'MyModel')
 
 # Logging parameter settings at each launch of training script
-# This will help ensure nothing goes awry in reloading a model and we don't accidentally use different hyperparameter settings.
+# This will help ensure nothing goes awry in reloading a model and we consistenyl use the same hyperparameter settings. 
 logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 
 
@@ -84,23 +88,22 @@ class modelClassifier:
 
         self.step = 1
         self.epoch = 0
-        self.best_dev_mat = 0.
-        self.best_dev_mismat = 0.
         self.best_dev_snli = 0.
         self.best_strain_acc = 0.
         self.last_train_acc = [.001, .001, .001, .001, .001]
         self.best_step = 0
 
-        # Restore best-checkpoint if it exists
+        # Restore most recent checkpoint if it exists. 
+        # Also restore values for best dev-set accuracy and best training-set accuracy.
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
         if os.path.isfile(ckpt_file + ".meta"):
             if os.path.isfile(ckpt_file + "_best.meta"):
                 self.saver.restore(self.sess, (ckpt_file + "_best"))
-                self.best_dev_mat, dev_cost_mat = evaluate_classifier(self.classify, dev_mat, self.batch_size)
-                self.best_dev_mismat, dev_cost_mismat = evaluate_classifier(self.classify, dev_mismat, self.batch_size)
+                best_dev_mat, dev_cost_mat = evaluate_classifier(self.classify, dev_mat, self.batch_size)
+                best_dev_mismat, dev_cost_mismat = evaluate_classifier(self.classify, dev_mismat, self.batch_size)
                 self.best_dev_snli, dev_cost_snli = evaluate_classifier(self.classify, dev_snli, self.batch_size)
                 self.best_strain_acc, strain_cost = evaluate_classifier(self.classify, train_snli[0:5000], self.batch_size)
-                logger.Log("Restored best matched-dev acc: %f\n Restored best mismatched-dev acc: %f\n Restored best SNLI-dev acc: %f\n Restored best SNLI train acc: %f" %(self.best_dev_mat, self.best_dev_mismat, self.best_dev_snli,  self.best_strain_acc))
+                logger.Log("Restored best matched-dev acc: %f\n Restored best mismatched-dev acc: %f\n Restored best SNLI-dev acc: %f\n Restored best SNLI train acc: %f" %(best_dev_mat, best_dev_mismat, self.best_dev_snli,  self.best_strain_acc))
 
             self.saver.restore(self.sess, ckpt_file)
             logger.Log("Model restored from file: %s" % ckpt_file)
@@ -129,8 +132,8 @@ class modelClassifier:
                                 self.model.keep_rate_ph: self.keep_rate}
                 _, c = self.sess.run([self.optimizer, self.model.total_cost], feed_dict)
 
-                # Since a single epoch can take a  ages, we'll print 
-                # accuracy every 50 steps
+                # Since a single epoch can take a  ages for larger models (ESIM),
+                #  we'll print accuracy every 50 steps
                 if self.step % self.display_step_freq == 0:
                     dev_acc_mat, dev_cost_mat = evaluate_classifier(self.classify, dev_mat, self.batch_size)
                     dev_acc_mismat, dev_cost_mismat = evaluate_classifier(self.classify, dev_mismat, self.batch_size)
@@ -145,8 +148,6 @@ class modelClassifier:
                     best_test = 100 * (1 - self.best_dev_snli / dev_acc_snli)
                     if best_test > 0.04:
                         self.saver.save(self.sess, ckpt_file + "_best")
-                        self.best_dev_mat = dev_acc_mat
-                        self.best_dev_mismat = dev_acc_mismat
                         self.best_dev_snli = dev_acc_snli
                         self.best_strain_acc = strain_acc
                         self.best_step = self.step
@@ -157,8 +158,7 @@ class modelClassifier:
                 # Compute average loss
                 avg_cost += c / (total_batch * self.batch_size)
                                 
-            # Display some statistics about the step
-            # Evaluating only one batch worth of data -- simplifies implementation slightly
+            # Display some statistics about the epoch
             if self.epoch % self.display_epoch_freq == 0:
                 logger.Log("Epoch: %i\t Avg. Cost: %f" %(self.epoch+1, avg_cost))
             
@@ -216,6 +216,7 @@ else:
     logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+
     # Results by genre,
     logger.Log("Test acc on matched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on mismatched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))

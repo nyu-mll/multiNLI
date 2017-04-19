@@ -1,3 +1,8 @@
+"""
+Training script to train a model on a single genre from MultiNLI or on SNLI data.
+The logs created during this training scheme have genre-specific statistics.
+"""
+
 import tensorflow as tf
 import os
 import importlib
@@ -19,7 +24,7 @@ module = importlib.import_module(".".join([model, submodel]))
 MyModel = getattr(module, 'MyModel')
 
 # Logging parameter settings at each launch of training script
-# This will help ensure nothing goes awry in reloading a model and we don't accidentally use different hyperparameter settings.
+# This will help ensure nothing goes awry in reloading a model and we consistenyl use the same hyperparameter settings. 
 logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 
 
@@ -101,14 +106,12 @@ class modelClassifier:
         self.step = 1
         self.epoch = 0
         self.best_dev = 0.
-        #self.best_dev_mismat = 0.
-        #self.best_dev_snli = 0.
         self.best_mtrain_acc = 0.
-        #self.best_strain_acc = 0.
         self.last_train_acc = [.001, .001, .001, .001, .001]
         self.best_step = 0
 
-        # Restore best-checkpoint if it exists
+        # Restore best-checkpoint if it exists.
+        # Also restore values for best dev-set accuracy and best training-set accuracy.
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
         if os.path.isfile(ckpt_file + ".meta"):
             if os.path.isfile(ckpt_file + "_best.meta"):
@@ -149,8 +152,8 @@ class modelClassifier:
                                 self.model.keep_rate_ph: self.keep_rate}
                 _, c = self.sess.run([self.optimizer, self.model.total_cost], feed_dict)
 
-                # Since a single epoch can take a  ages, we'll print 
-                # accuracy every 50 steps
+                # Since a single epoch can take a  ages for larger models (ESIM),
+                #  we'll print accuracy every 50 steps
                 if self.step % self.display_step_freq == 0:
                     dev_acc_mat, dev_cost_mat = evaluate_classifier_genre(self.classify, dev_mat, self.batch_size)
                     if genre == 'snli':
@@ -179,8 +182,7 @@ class modelClassifier:
                 # Compute average loss
                 avg_cost += c / (total_batch * self.batch_size)
                                 
-            # Display some statistics about the step
-            # Evaluating only one batch worth of data -- simplifies implementation slightly
+            # Display some statistics about the epoch
             if self.epoch % self.display_epoch_freq == 0:
                 logger.Log("Epoch: %i\t Avg. Cost: %f" %(self.epoch+1, avg_cost))
             
@@ -238,6 +240,7 @@ else:
     logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"])[0]))
+    
     # Results by genre,
     logger.Log("Test acc on matched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Test acc on mismatched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
