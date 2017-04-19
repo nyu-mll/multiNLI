@@ -17,9 +17,8 @@ logpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".log"
 logger = logger.Logger(logpath)
 
 model = FIXED_PARAMETERS["model_type"]
-submodel = FIXED_PARAMETERS["model_subtype"]
 
-module = importlib.import_module(".".join([model, submodel])) 
+module = importlib.import_module(".".join(['models', model])) 
 MyModel = getattr(module, 'MyModel')
 
 # Logging parameter settings at each launch of training script
@@ -60,7 +59,7 @@ class modelClassifier:
         self.sequence_length = FIXED_PARAMETERS["seq_length"] 
         self.alpha = FIXED_PARAMETERS["alpha"]
 
-        logger.Log("Building model from %s.py" %(submodel))
+        logger.Log("Building model from %s.py" %(model))
         self.model = MyModel(seq_length=self.sequence_length, emb_dim=self.embedding_dim,  hidden_dim=self.dim, embeddings=loaded_embeddings, emb_train=self.emb_train)
 
         # Perform gradient descent with Adam
