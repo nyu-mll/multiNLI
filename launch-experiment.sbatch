@@ -9,8 +9,7 @@
 module load tensorflow/python2.7/20170218
 
 # Run.
-PYTHONPATH=$PYTHONPATH:. python training_script model_type model_subtype experiment_name --keep_rate 0.5 --learning_rate 0.0004 --emb_train
+PYTHONPATH=$PYTHONPATH:. python training_script model_type experiment_name --keep_rate 0.5 --learning_rate 0.0004 --alpha 0.13 --emb_train
 
-# Example training_scripts: train.py, train_mnli.py
-# Example model_types: cbow, ebim, bilstm
-# Example model_subtypes: cbow_2layer, ebim, bilstm-attn
+# Available training_scripts: train_snli.py, train_mnli.py, train_genre.py
+# Available model_types: cbow, bilstm, esim
