@@ -3,7 +3,7 @@ The hyperparameters for a model are defined here. Arguments like the type of mod
 All paramters and arguments can be changed by calling flags in the command line.
 
 Required arguements are,
-model_type: which model you wish to train with. Valid model types: cbow, bilstm, and ebim.
+model_type: which model you wish to train with. Valid model types: cbow, bilstm, and esim.
 model_name: the name assigned to the model being trained, this will prefix the name of the logs and checkpoint files.
 """
 
@@ -11,7 +11,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-models = ['ebim','cbow', 'bilstm']
+models = ['esim','cbow', 'bilstm']
 def types(s):
     options = [mod for mod in models if s in models]
     if len(options) == 1:
@@ -27,7 +27,7 @@ def subtypes(s):
     return s
 
 parser.add_argument("model_type", choices=models, type=types, help="Give model type.")
-parser.add_argument("model_name", type=str, help="Give model name, this will name logs and checkpoints made. For example cbow, ebim2 etc.")
+parser.add_argument("model_name", type=str, help="Give model name, this will name logs and checkpoints made. For example cbow, esim_test etc.")
 
 parser.add_argument("--datapath", type=str, default="../data")
 parser.add_argument("--ckptpath", type=str, default="../logs")
