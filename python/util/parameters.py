@@ -1,3 +1,12 @@
+"""
+The hyperparameters for a model are defined here. Arguments like the type of model, model name, paths to data, logs etc. are also defined here.
+All paramters and arguments can be changed by calling flags in the command line.
+
+Required arguements are,
+model_type: which model you wish to train with. Valid model types: cbow, bilstm, and ebim.
+model_name: the name assigned to the model being trained, this will prefix the name of the logs and checkpoint files.
+"""
+
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -9,13 +18,7 @@ def types(s):
         return options[0]
     return s
 
-model_sub = ['ebim', 'ebim_noAvgPool', 'ebim_noDiffMul', 'ebim_noInfBiLSTM', 'bilstm', 'bilstm_meanpool', 'cbow_2layer', 'cbow']
-def subtypes(s):
-    options = [mod for mod in model_sub if s in model_sub]
-    if len(options) == 1:
-        return options[0]
-    return s
-
+# Valid genres to train on. 
 genres = ['travel', 'fiction', 'slate', 'telephone', 'government']
 def subtypes(s):
     options = [mod for mod in genres if s in genres]
@@ -24,32 +27,28 @@ def subtypes(s):
     return s
 
 parser.add_argument("model_type", choices=models, type=types, help="Give model type.")
-parser.add_argument("model_subtype", choices=model_sub, type=subtypes, help="Give model subtype")
 parser.add_argument("model_name", type=str, help="Give model name, this will name logs and checkpoints made. For example cbow, ebim2 etc.")
-
-parser.add_argument("--data_type", type=str, default="snli", help="Give dataset name, example snli, multiNLI etc.")
 
 parser.add_argument("--datapath", type=str, default="../data")
 parser.add_argument("--ckptpath", type=str, default="../logs")
 parser.add_argument("--logpath", type=str, default="../logs")
 
-parser.add_argument("--emb_to_load", type=int, default=None, help="Number of embeddings to load")
+parser.add_argument("--emb_to_load", type=int, default=None, help="Number of embeddings to load. If None, all embeddings are loaded.")
 parser.add_argument("--learning_rate", type=float, default=0.0004, help="Learning rate for model")
 parser.add_argument("--keep_rate", type=float, default=0.5, help="Keep rate for dropout in the model")
 parser.add_argument("--seq_length", type=int, default=50, help="Max sequence length")
-parser.add_argument("--alpha", type=float, default=0., help="What percentage of SNLI data to use in training")
-parser.add_argument("--genre", type=str, help="Which genre to train on")
-
 parser.add_argument("--emb_train", action='store_true', help="Call if you want to make your word embeddings trainable.")
+
+parser.add_argument("--genre", type=str, help="Which genre to train on")
+parser.add_argument("--alpha", type=float, default=0., help="What percentage of SNLI data to use in training")
+
 parser.add_argument("--test", action='store_true', help="Call if you want to only test on the best checkpoint.")
 
 args = parser.parse_args()
 
 def load_parameters():
     FIXED_PARAMETERS = {
-        "data_type": "{}".format(args.data_type),
         "model_type": args.model_type,
-        "model_subtype": args.model_subtype,
         "model_name": args.model_name,
         "training_mnli": "{}/multinli_0.9/multinli_0.9_train.jsonl".format(args.datapath),
         "dev_matched": "{}/multinli_0.9/multinli_0.9_dev_matched.jsonl".format(args.datapath),

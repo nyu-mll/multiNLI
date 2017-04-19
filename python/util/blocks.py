@@ -16,7 +16,7 @@ def length(sequence):
     Input of shape: (batch_size, max_seq_length, hidden_dim)
     Output shapes, 
     length: (batch_size)
-    mask: (batch_size, max_seq_length)
+    mask: (batch_size, max_seq_length, 1)
     """
     populated = tf.sign(tf.abs(sequence))
     length = tf.cast(tf.reduce_sum(populated, axis=1), tf.int32)

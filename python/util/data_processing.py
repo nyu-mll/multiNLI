@@ -15,11 +15,11 @@ LABEL_MAP = {
 }
 
 PADDING = "<PAD>"
-#UNKNOWN = "<UNK>"
 
 def load_nli_data(path, snli=False):
     """
-    Load MultiNLI and SNLI data.
+    Load MultiNLI or SNLI data.
+    If the "snli" parameter is set to True, a genre label of snli will be assigned to the data. 
     """
     data = []
     with open(path) as f:
@@ -35,9 +35,10 @@ def load_nli_data(path, snli=False):
         random.shuffle(data)
     return data
 
-def load_nli_data_genre(path, genre, snli=False):
+def load_nli_data_genre(path, genre, snli=True):
     """
-    Load MultiNLI and SNLI data.
+    Load a specific genre's examples from MultiNLI, or load SNLI data and assign a "snli" genre to the examples.
+    If the "snli" parameter is set to True, a genre label of snli will be assigned to the data. If set to true, it will overwrite the genre label for MultiNLI data.
     """
     data = []
     j = 0
@@ -64,7 +65,6 @@ def sentences_to_padded_index_sequences(datasets):
     # Extract vocabulary
     def tokenize(string):
         string = re.sub(r'\(|\)', '', string)
-        #return string.lower().split()
         return string.split()
     
     word_counter = collections.Counter()
@@ -93,10 +93,6 @@ def sentences_to_padded_index_sequences(datasets):
                         index = word_indices[PADDING]
                     else:
                         index = word_indices[token_sequence[i]]
-                        #if token_sequence[i] in word_indices:
-                        #    index = word_indices[token_sequence[i]]
-                        #else:
-                        #index = word_indices[UNKNOWN]
                     example[sentence + '_index_sequence'][i] = index
     
     return indices_to_words, word_indices
@@ -105,7 +101,7 @@ def sentences_to_padded_index_sequences(datasets):
 
 def loadEmbedding_zeros(path, word_indices):
     """
-    Load GloVe embeddings. Initializng OOV to 0.
+    Load GloVe embeddings. Initializng OOV words to vector of zeros.
     """
     emb = np.zeros((len(word_indices), FIXED_PARAMETERS["word_embedding_dim"]), dtype='float32')
     
@@ -124,7 +120,7 @@ def loadEmbedding_zeros(path, word_indices):
 
 def loadEmbedding_rand(path, word_indices):
     """
-    Load GloVe embeddings. Doing a random normal nitialization for OOV.
+    Load GloVe embeddings. Doing a random normal initialization for OOV words.
     """
     j = 0
     n = len(word_indices)
@@ -133,7 +129,7 @@ def loadEmbedding_rand(path, word_indices):
 
     emb[:,:] = np.random.normal(size=(n,m))
 
-    # Want embedding of <PAD> to be zeros.
+    # Explicitly assign embedding of <PAD> to be zeros.
     emb[0, :] = np.zeros((1,m), dtype="float32")
     
     with open(path, 'r') as f:
