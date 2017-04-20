@@ -212,6 +212,7 @@ test = params.train_or_test()
 test_matched = dev_matched
 test_mismatched = dev_mismatched
 
+
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
     logger.Log("Acc on matched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])

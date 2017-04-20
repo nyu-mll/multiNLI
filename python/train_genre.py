@@ -53,12 +53,10 @@ dev_snli = load_nli_data(FIXED_PARAMETERS["dev_snli"], snli=True)
 test_snli = load_nli_data(FIXED_PARAMETERS["test_snli"], snli=True)
 dev_matched = load_nli_data(FIXED_PARAMETERS["dev_matched"])
 dev_mismatched = load_nli_data(FIXED_PARAMETERS["dev_mismatched"])
-test_matched = load_nli_data(FIXED_PARAMETERS["test_matched"])
-test_mismatched = load_nli_data(FIXED_PARAMETERS["test_mismatched"])
 
 
 logger.Log("Loading embeddings")
-indices_to_words, word_indices = sentences_to_padded_index_sequences([training_data, dev_snli, dev_matched, dev_mismatched, test_snli, test_matched, test_mismatched])
+indices_to_words, word_indices = sentences_to_padded_index_sequences([training_data, dev_snli, dev_matched, dev_mismatched, test_snli])
 
 loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
@@ -136,6 +134,9 @@ class modelClassifier:
             random.shuffle(training_data)
             avg_cost = 0.
             total_batch = int(len(training_data) / self.batch_size)
+
+            # Boolean stating that training has not been completed, 
+            self.completed = False 
             
             # Loop over all batches in epoch
             for i in range(total_batch):
@@ -194,11 +195,12 @@ class modelClassifier:
             if (progress < 0.1) or (self.step > self.best_step + 10000):
                 logger.Log("Best matched-dev accuracy: %s" %(self.best_dev))
                 logger.Log("MultiNLI Train accuracy: %s" %(self.best_mtrain_acc))
+                self.completed = True
                 break
 
     def classify(self, examples):
         # This classifies a list of examples
-        if examples in test_sets:
+        if (test == True) or (self.completed == True):
             best_path = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best"
             self.sess = tf.Session()
             self.sess.run(self.init)
@@ -224,23 +226,45 @@ class modelClassifier:
 
 classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
 
-# Now either train the model and then run it on the test set or just load the best checkpoint 
-# and get accuracy on the test set. Default setting is to train the model.
+"""
+Either train the model and then run it on the test-sets or 
+load the best checkpoint and get accuracy on the test set. Default setting is to train the model.
+"""
 
 test = params.train_or_test()
-test_sets = [test_matched, test_mismatched]
+
+# While test-set isn't released, use dev-sets for testing
+test_matched = dev_matched
+test_mismatched = dev_mismatched
+
 
 if test == False:
     classifier.train(training_data, dev_matched, dev_mismatched, dev_snli)
-    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
-    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
-    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
+    test_matched, FIXED_PARAMETERS["batch_size"]))[0])
+
+    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
+    test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
+
+    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, \
+        test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 else:
-    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
+    test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+
+    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
+        test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+
+    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, \
+        test_snli, FIXED_PARAMETERS["batch_size"])[0]))
     
     # Results by genre,
-    logger.Log("Test acc on matched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Test acc on mismatched genres: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Test acc on matched genres: %s" %(evaluate_classifier_genre(classifier.classify, \
+        test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+
+    logger.Log("Test acc on mismatched genres: %s" %(evaluate_classifier_genre(classifier.classify, \
+        test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+  
+
+  
   

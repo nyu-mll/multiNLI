@@ -227,7 +227,6 @@ test = params.train_or_test()
 test_matched = dev_matched
 test_mismatched = dev_mismatched
 
-#test_sets = [test_matched, test_mismatched, test_snli]
 
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
