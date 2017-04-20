@@ -61,7 +61,7 @@ Optional flags,
 - `learning_rate`: the learning rate you wish to use during training. Default value is set to 0.0004
 - `keep_rate`: the hyper-parameter for dropout-rate. `keep_rate` = 1 - dropout-rate. The default value is set to 0.5.
 - `seq_length`: the maximum sequence length you wish to use. Default value is set to 50. Sentences shorter than `seq_length` are padded to the right. Sentences longer than `seq-length` are truncated. 
-- `emb_train`: boolean flag that determines if the model updates word emebddings during training. Set to True by default.
+- `emb_train`: boolean flag that determines if the model updates word embeddings during training. If called, the word embeddings are updated. 
 - `alpha`: only used during `train_mnli` scheme. Determines what percentage of SNLI training data to use in each epoch of training. Default value set to 0.0 (which makes the model train on MultiNLI only).
 - `genre`: only used during `train_genre` scheme. Use this flag to set which single genre you wish to train on. Valid genres are `travel`, `fiction`, `slate`, `telephone`, `government`, or `snli`.
 - `test`: boolean used to test a trained model. Call this flag if you wish to load a trained model and test it on MultiNLI dev-sets* and SNLI test-set. When called, the best checkpoint will be used (see section on checkpoints for more details).
