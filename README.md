@@ -46,7 +46,7 @@ The models can be  trained on three different training sets. Each training "sche
 
 ### Command line flags
 
-To launch any training scheme, there are a couple of required command-line flags, and an array of optional flags. The code concerning all flags can be found in `parameters.py`.
+To launch any training scheme, there are a couple of required command-line flags, and an array of optional flags. The code concerning all flags can be found in `parameters.py`. All the parameters set in `parameters.py` are printed to the log file everytime the training script is launched. 
 
 Required flags,
 
@@ -60,39 +60,39 @@ Optional flags,
 - `logpath`: path to your directory where you wish to store log files. Default is set to "../logs"
 - `emb_to_load`: path to your directory with GloVe data. Default is set to "../data"
 - `learning_rate`: the learning rate you wish to use during training. Defulat value is set to 0.0004
-- `keep_rate`: the hyper-parameter for dropout rate. `keep_rate` = 1 - dropout-rate. The default value is set to 0.5. For CBOW and BiLSTM models, we used a keep-rate of 0.9, i.e. a dropout rate of 0.1.
-- `seq_length`: the maximum sequence length you wish to use. Default value is set to 50. Sentences shorter than `seq_length` are padded to the right. Sentneced longer than `seq-length` are truncated. 
+- `keep_rate`: the hyper-parameter for dropout rate. `keep_rate` = 1 - dropout-rate. The default value is set to 0.5. For CBOW and BiLSTM models, we used a keep-rate of 0.9, i.e. a dropout-rate of 0.1.
+- `seq_length`: the maximum sequence length you wish to use. Default value is set to 50. Sentences shorter than `seq_length` are padded to the right. Sentences longer than `seq-length` are truncated. 
 - `emb_train`: boolean flag that determines if the model updates word emebddings during training. Set to True by default.
 - `alpha`: only used during `train_mnli` scheme. Determines what percentage of SNLI training data to use in each epoch of training. Default value set to 0.0 (which maked the model train on MultiNLI only).
-- `genre`: only used during `train_genre` scheme. Use this flag to set which single genre you wish to train on.
+- `genre`: only used during `train_genre` scheme. Use this flag to set which single genre you wish to train on. Valid genres are `travel`, `fiction`, `slate`, `telephone`, `government`, or `snli`.
 - `test`: boolean used to test a trained model. Call this flag if you wish to load a trained model and test it on MultiNLI dev-sets* and SNLI test-set. When called, the best checkpoint will be used (see section on checkpoints for more details).
 
  
-*Dev-sets are currently used for testing on MultiNLI while the test-sets have not be released. 
+*Dev-sets are currently used for testing on MultiNLI since the test-sets have not be released. 
 
 ### Other parameters
 
-Remaining parameters like the size of hidden layers and word embeddings, minibatch size can be changed directly in `parameters.py`. The default hidden embedding and word embedding size is set to 300, the minibatch size (`batch_size` in the code) is set to 32.
+Remaining parameters like the size of hidden layers, word embeddings, and minibatch can be changed directly in `parameters.py`. The default hidden embedding and word embedding size is set to 300, the minibatch size (`batch_size` in the code) is set to 32.
 
 ### Sample commands
 
 To train on SNLI data only, here is a sample command,
 
-`PYTHONPATH=$PYTHONPATH:. python train_snli.py cbow cbow-run1 --keep_rate 0.9 --seq_length 25 --emb_train`
+`PYTHONPATH=$PYTHONPATH:. python train_snli.py cbow petModel-0 --keep_rate 0.9 --seq_length 25 --emb_train`
 
-where the `model_type` flag is set to `cbow` and can be swapped for `bilstm` or `esim`, and the model_name flag is set to `cbow-run1` and can be changed to a name of your choice.
+where the `model_type` flag is set to `cbow` and can be swapped for `bilstm` or `esim`, and the `model_name` flag is set to `petModel-0` and can be changed to a name of your choice.
 
 Similarly, to train on MultiNLI and SNLI data, using a random 15% sample of SNLI data, here is a sample command,
 
-`PYTHONPATH=$PYTHONPATH:. python train_mnli.py bilstm bilstm-run1 --keep_rate 0.9 --alpha 0.15 --emb_train`
+`PYTHONPATH=$PYTHONPATH:. python train_mnli.py bilstm petModel-1 --keep_rate 0.9 --alpha 0.15 --emb_train`
 
 To train on just the `travel` genre in MultiNLI data,
 
-`PYTHONPATH=$PYTHONPATH:. python train_genre.py esim esim-run1 --genre travel --emb_train`
+`PYTHONPATH=$PYTHONPATH:. python train_genre.py esim petModel-2 --genre travel --emb_train`
 
 ### Testing models
 
-To test a trained model, simply call the `test` flag to the command used for training. The best checkpoint will be loaded and used to evaluate the model's performance on the test-set.
+To test a trained model, simply call the `test` flag to the command used for training. The best checkpoint will be loaded and used to evaluate the model's performance on the MultiNLI dev-sets and SNLI test-set.
 
 For example,
 
@@ -101,5 +101,4 @@ For example,
 ### Checkpoints 
 
 We maintain two checkpoints: the most recent checkpoint and the best checkpoint. Every 500 steps, the most recent checkpoint is updated, and we test to see if the dev-set accuracy has improved by at least 0.4%. If the accuracy has gone up by at least 0.4%, then the best checkpoint is updated.
-
 
