@@ -9,7 +9,7 @@ The MultiNLI and SNLI corpora are both distributed in JSON lines and tab separat
 - SNLI data can be downloaded [here](https://www.nyu.edu/projects/bowman/multinli/snli_1.0.zip).
 
 ## Models
-We present three baseline neural network models. These range from a bare-bones model (CBOW), to an elaborate model (ESIM) which has achieved state-of-the-art performance on the SNLI coprus,
+We present three baseline neural network models. These range from a bare-bones model (CBOW), to an elaborate model which has achieved state-of-the-art performance on the SNLI corpus (ESIM),
 
 - Continuous Bag of Words (CBOW):  in this model, each sentence is represented as the sum of the embedding representations of its
 words. This representation is passed to a deep, 3-layers, MLP. Main code for this model is in `cbow.py`
@@ -17,36 +17,35 @@ words. This representation is passed to a deep, 3-layers, MLP. Main code for thi
 a bidirectional LSTM RNN is used as the sentence representation. Main code for this model is in `bilstm.py`
 - Enhanced Sequential Inference Model (ESIM): this is our implementation of the [Chen et al.'s (2017)](https://arxiv.org/pdf/1609.06038v2.pdf) ESIM, without ensembling with a TreeLSTM. Main code for this model is in `esim.py`
 
-We use dropout for regularization in all three models. Dropout is implemented at the embedding layer, and after the final non-linearity, before passing the representations to the softmax classifier. 
+We use dropout for regularization in all three models.
 
-## Training Models
+## Training and Testing
 
-### Training schemes
+### Training settings
 
-The models can be  trained on three different training sets. Each training "scheme" has its own training script.
+The models can be  trained on three different settings. Each setting has its own training script.
 
 - To train a model only on SNLI data, 
 	- Use `train_snli.py`. 
 	- Accuracy on SNLI's dev-set is used to do early stopping. 
 
-- To trian a model on only MultiNLI or on a mixture of MultiNLI and SNLI data, 
+- To train a model on only MultiNLI or on a mixture of MultiNLI and SNLI data, 
 	- Use `train_mnli.py`. 
 	- The optional `alpha` flag determines what percentage of SNLI data is used in training. The default value for alpha is 0.0, which means the model will be only trained on MultiNLI data. 
 	- If `alpha` is a set to a value greater than 0 (and less than 1), an `alpha` percentage of SNLI training data is randomly sampled at the beginning of each epoch. 
-	- When using SNLI training data in this scheme, we set `alpha` = 0.15.
+	- When using SNLI training data in this setting, we set `alpha` = 0.15.
 	- Accuracy on MultiNLI's matched dev-set is used to do early stopping.
 
 - To train a model on a single MultiNLI genre, 
 	- Use `train_genre.py`. 
-	- To use this training scheme, you must call the `genre` flag and set it to a valid training genre (`travel`, `fiction`, `slate`, `telephone`, `government`, or `snli`). 
+	- To use this training setting, you must call the `genre` flag and set it to a valid training genre (`travel`, `fiction`, `slate`, `telephone`, `government`, or `snli`). 
 	- Accuracy on the dev-set for the chosen genre is used to do early stopping. 
-	- Additionally, logs created with this training scheme contain evaulation statistics by genre. 
-	- You can also train a model on SNLI with training scheme if you want genre specific statistics in your logs. 
-
+	- Additionally, logs created with this training setting contain evaulation statistics by genre. 
+	- You can also train a model on SNLI with this script if you desire genre specific statistics in your logs. 
 
 ### Command line flags
 
-To launch any training scheme, there are a couple of required command-line flags, and an array of optional flags. The code concerning all flags can be found in `parameters.py`. All the parameters set in `parameters.py` are printed to the log file everytime the training script is launched. 
+To start training with any of the training scripts, there are a couple of required command-line flags and an array of optional flags. The code concerning all flags can be found in `parameters.py`. All the parameters set in `parameters.py` are printed to the log file everytime the training script is launched. 
 
 Required flags,
 
@@ -59,8 +58,8 @@ Optional flags,
 - `ckptpath`: path to your directory where you wish to store checkpoint files. Default is set to "../logs"
 - `logpath`: path to your directory where you wish to store log files. Default is set to "../logs"
 - `emb_to_load`: path to your directory with GloVe data. Default is set to "../data"
-- `learning_rate`: the learning rate you wish to use during training. Defulat value is set to 0.0004
-- `keep_rate`: the hyper-parameter for dropout rate. `keep_rate` = 1 - dropout-rate. The default value is set to 0.5. For CBOW and BiLSTM models, we used a keep-rate of 0.9, i.e. a dropout-rate of 0.1.
+- `learning_rate`: the learning rate you wish to use during training. Default value is set to 0.0004
+- `keep_rate`: the hyper-parameter for dropout-rate. `keep_rate` = 1 - dropout-rate. The default value is set to 0.5.
 - `seq_length`: the maximum sequence length you wish to use. Default value is set to 50. Sentences shorter than `seq_length` are padded to the right. Sentences longer than `seq-length` are truncated. 
 - `emb_train`: boolean flag that determines if the model updates word emebddings during training. Set to True by default.
 - `alpha`: only used during `train_mnli` scheme. Determines what percentage of SNLI training data to use in each epoch of training. Default value set to 0.0 (which makes the model train on MultiNLI only).
@@ -81,11 +80,13 @@ To execute all of the following sample commands, you must be in the "python" fol
 
 	`PYTHONPATH=$PYTHONPATH:. python train_snli.py cbow petModel-0 --keep_rate 0.9 --seq_length 25 --emb_train`
 
-	where the `model_type` flag is set to `cbow` and can be swapped for `bilstm` or `esim`, and the `model_name` flag is set to `petModel-0` and can be changed to a name of your choice.
+	where the `model_type` flag is set to `cbow` and can be swapped for `bilstm` or `esim`, and the `model_name` flag is set to `petModel-0` and can be changed to whatever you please.
 
-- Similarly, to train on MultiNLI and SNLI data, using a random 15% sample of SNLI data, here is a sample command,
+- Similarly, to train on a mixture MultiNLI and SNLI data, here is a sample command,
 
 	`PYTHONPATH=$PYTHONPATH:. python train_mnli.py bilstm petModel-1 --keep_rate 0.9 --alpha 0.15 --emb_train`
+
+	where 15% of SNLI training data is randomly sampled at the beginning of each epoch. 
 
 - To train on just the `travel` genre in MultiNLI data,
 
@@ -97,7 +98,7 @@ To test a trained model, simply add the `test` flag to the command used for trai
 
 For example,
 
-`PYTHONPATH=$PYTHONPATH:. python train_genre.py esim esim-run1 --genre travel --emb_train --test`
+`PYTHONPATH=$PYTHONPATH:. python train_genre.py esim petModel-1 --genre travel --emb_train --test`
 
 
 ### Checkpoints 
