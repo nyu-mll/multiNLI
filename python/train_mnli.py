@@ -185,7 +185,7 @@ class modelClassifier:
             if (progress < 0.1) or (self.step > self.best_step + 30000):
                 logger.Log("Best matched-dev accuracy: %s" %(self.best_dev_mat))
                 logger.Log("MultiNLI Train accuracy: %s" %(self.best_mtrain_acc))
-                self.completed = 1
+                self.completed = True
                 break
 
     def classify(self, examples):
