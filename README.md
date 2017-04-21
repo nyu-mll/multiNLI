@@ -3,10 +3,7 @@
 This is the code we used to establish baselines for the MultiNLI corpus introduced in [A Broad-Coverage Challenge Corpus for Sentence Understanding through Inference](https://arxiv.org/pdf/1704.05426.pdf).
 
 ## Data
-The MultiNLI and SNLI corpora are both distributed in JSON lines and tab separated value files. 
-
-- MultiNLI data can be downloaded [here](https://www.nyu.edu/projects/bowman/multinli/multinli_0.9.pdf).
-- SNLI data can be downloaded [here](https://www.nyu.edu/projects/bowman/multinli/snli_1.0.zip).
+The MultiNLI and SNLI corpora are both distributed in JSON lines and tab separated value files. Both can be downloaded [here](https://www.nyu.edu/projects/bowman/multinli/).
 
 ## Models
 We present three baseline neural network models. These range from a bare-bones model (CBOW), to an elaborate model which has achieved state-of-the-art performance on the SNLI corpus (ESIM),
