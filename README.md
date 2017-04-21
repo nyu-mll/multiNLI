@@ -98,7 +98,7 @@ To test a trained model, simply add the `test` flag to the command used for trai
 
 For example,
 
-`PYTHONPATH=$PYTHONPATH:. python train_genre.py esim petModel-1 --genre travel --emb_train --test`
+`PYTHONPATH=$PYTHONPATH:. python train_genre.py esim petModel-2 --genre travel --emb_train --test`
 
 
 ### Checkpoints 
