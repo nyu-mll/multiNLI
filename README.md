@@ -103,5 +103,5 @@ For example,
 
 ### Checkpoints 
 
-We maintain two checkpoints: the most recent checkpoint and the best checkpoint. Every 500 steps, the most recent checkpoint is updated, and we test to see if the dev-set accuracy has improved by at least 0.4%. If the accuracy has gone up by at least 0.4%, then the best checkpoint is updated.
+We maintain two checkpoints: the most recent checkpoint and the best checkpoint. Every 500 steps, the most recent checkpoint is updated, and we test to see if the dev-set accuracy has improved by at least 0.04%. If the accuracy has gone up by at least 0.04%, then the best checkpoint is updated.
 
