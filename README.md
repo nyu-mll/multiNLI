@@ -9,10 +9,10 @@ The MultiNLI and SNLI corpora are both distributed in JSON lines and tab separat
 We present three baseline neural network models. These range from a bare-bones model (CBOW), to an elaborate model which has achieved state-of-the-art performance on the SNLI corpus (ESIM),
 
 - Continuous Bag of Words (CBOW):  in this model, each sentence is represented as the sum of the embedding representations of its
-words. This representation is passed to a deep, 3-layers, MLP. Main code for this model is in `cbow.py`
+words. This representation is passed to a deep, 3-layers, MLP. Main code for this model is in [`cbow.py`](https://github.com/NYU-MLL/multiNLI/blob/master/python/models/cbow.py)
 - Bi-directional LSTM: in this model, the average of the states of
-a bidirectional LSTM RNN is used as the sentence representation. Main code for this model is in `bilstm.py`
-- Enhanced Sequential Inference Model (ESIM): this is our implementation of the [Chen et al.'s (2017)](https://arxiv.org/pdf/1609.06038v2.pdf) ESIM, without ensembling with a TreeLSTM. Main code for this model is in `esim.py`
+a bidirectional LSTM RNN is used as the sentence representation. Main code for this model is in [`bilstm.py`](https://github.com/NYU-MLL/multiNLI/blob/master/python/models/bilstm.py)
+- Enhanced Sequential Inference Model (ESIM): this is our implementation of the [Chen et al.'s (2017)](https://arxiv.org/pdf/1609.06038v2.pdf) ESIM, without ensembling with a TreeLSTM. Main code for this model is in [`esim.py`](https://github.com/NYU-MLL/multiNLI/blob/master/python/models/esim.py)
 
 We use dropout for regularization in all three models.
 
@@ -23,18 +23,18 @@ We use dropout for regularization in all three models.
 The models can be  trained on three different settings. Each setting has its own training script.
 
 - To train a model only on SNLI data, 
-	- Use `train_snli.py`. 
+	- Use [`train_snli.py`](https://github.com/NYU-MLL/multiNLI/blob/master/python/train_snli.py). 
 	- Accuracy on SNLI's dev-set is used to do early stopping. 
 
 - To train a model on only MultiNLI or on a mixture of MultiNLI and SNLI data, 
-	- Use `train_mnli.py`. 
+	- Use [`train_mnli.py`](https://github.com/NYU-MLL/multiNLI/blob/master/python/train_mnli.py). 
 	- The optional `alpha` flag determines what percentage of SNLI data is used in training. The default value for alpha is 0.0, which means the model will be only trained on MultiNLI data. 
 	- If `alpha` is a set to a value greater than 0 (and less than 1), an `alpha` percentage of SNLI training data is randomly sampled at the beginning of each epoch. 
 	- When using SNLI training data in this setting, we set `alpha` = 0.15.
 	- Accuracy on MultiNLI's matched dev-set is used to do early stopping.
 
 - To train a model on a single MultiNLI genre, 
-	- Use `train_genre.py`. 
+	- Use `[train_genre.py`](https://github.com/NYU-MLL/multiNLI/blob/master/python/train_genre.py). 
 	- To use this training setting, you must call the `genre` flag and set it to a valid training genre (`travel`, `fiction`, `slate`, `telephone`, `government`, or `snli`). 
 	- Accuracy on the dev-set for the chosen genre is used to do early stopping. 
 	- Additionally, logs created with this training setting contain evaulation statistics by genre. 
@@ -42,7 +42,7 @@ The models can be  trained on three different settings. Each setting has its own
 
 ### Command line flags
 
-To start training with any of the training scripts, there are a couple of required command-line flags and an array of optional flags. The code concerning all flags can be found in `parameters.py`. All the parameters set in `parameters.py` are printed to the log file everytime the training script is launched. 
+To start training with any of the training scripts, there are a couple of required command-line flags and an array of optional flags. The code concerning all flags can be found in [`parameters.py`](https://github.com/NYU-MLL/multiNLI/blob/master/python/util/parameters.py). All the parameters set in `parameters.py` are printed to the log file everytime the training script is launched. 
 
 Required flags,
 
