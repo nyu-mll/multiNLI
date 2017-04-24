@@ -34,7 +34,7 @@ The models can be  trained on three different settings. Each setting has its own
 	- Accuracy on MultiNLI's matched dev-set is used to do early stopping.
 
 - To train a model on a single MultiNLI genre, 
-	- Use `[train_genre.py`](https://github.com/NYU-MLL/multiNLI/blob/master/python/train_genre.py). 
+	- Use [`train_genre.py`](https://github.com/NYU-MLL/multiNLI/blob/master/python/train_genre.py). 
 	- To use this training setting, you must call the `genre` flag and set it to a valid training genre (`travel`, `fiction`, `slate`, `telephone`, `government`, or `snli`). 
 	- Accuracy on the dev-set for the chosen genre is used to do early stopping. 
 	- Additionally, logs created with this training setting contain evaulation statistics by genre. 
