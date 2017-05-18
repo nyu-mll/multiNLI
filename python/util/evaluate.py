@@ -1,3 +1,6 @@
+import csv
+import sys 
+
 def evaluate_classifier(classifier, eval_set, batch_size):
     """
     Function to get accuracy and cost of the model, evaluated on a chosen dataset.
@@ -45,3 +48,32 @@ def evaluate_classifier_genre(classifier, eval_set, batch_size):
 
     return accuracy, cost
 
+
+def predictions_kaggle(classifier, eval_set, batch_size, name):
+    """
+    Get comma-separated CSV of predictions.
+    Output file has two columns: pairID, prediction
+    """
+    INVERSE_MAP = {
+    0: "entailment",
+    1: "neutral",
+    2: "contradiction"
+    }
+
+    hypotheses = classifier(eval_set)
+    predictions = []
+    
+    for i in range(len(eval_set)):
+        hypothesis = hypotheses[i]
+        prediction = INVERSE_MAP[hypothesis]
+        pairID = eval_set[i]["pairID"]  
+        predictions.append((pairID, prediction))
+
+    predictions = sorted(predictions, key=lambda x: int(x[0]))
+
+    f = open( name + '_predictions.csv', 'wb')
+    w = csv.writer(f, delimiter = ',')
+    w.writerow(['pairID','prediction'])
+    for example in predictions:
+        w.writerow(example)
+    f.close()

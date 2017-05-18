@@ -62,6 +62,9 @@ class modelClassifier:
         # Perform gradient descent with Adam
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.model.total_cost)
 
+        # Boolean stating that training has not been completed, 
+        self.completed = False 
+
         # tf things: initialize variables and create placeholder for session
         logger.Log("Initializing variables")
         self.init = tf.global_variables_initializer()
@@ -113,9 +116,6 @@ class modelClassifier:
             random.shuffle(training_data)
             avg_cost = 0.
             total_batch = int(len(training_data) / self.batch_size)
-
-            # Boolean stating that training has not been completed, 
-            self.completed = False 
             
             # Loop over all batches in epoch
             for i in range(total_batch):

@@ -11,7 +11,8 @@ FIXED_PARAMETERS = params.load_parameters()
 LABEL_MAP = {
     "entailment": 0,
     "neutral": 1,
-    "contradiction": 2
+    "contradiction": 2,
+    "hidden": 3
 }
 
 PADDING = "<PAD>"

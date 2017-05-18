@@ -37,10 +37,11 @@ test_snli = load_nli_data(FIXED_PARAMETERS["test_snli"], snli=True)
 training_mnli = load_nli_data(FIXED_PARAMETERS["training_mnli"])
 dev_matched = load_nli_data(FIXED_PARAMETERS["dev_matched"])
 dev_mismatched = load_nli_data(FIXED_PARAMETERS["dev_mismatched"])
-
+test_matched = load_nli_data(FIXED_PARAMETERS["test_matched"])
+test_mismatched = load_nli_data(FIXED_PARAMETERS["test_mismatched"])
 
 logger.Log("Loading embeddings")
-indices_to_words, word_indices = sentences_to_padded_index_sequences([training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli])
+indices_to_words, word_indices = sentences_to_padded_index_sequences([training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
 loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
 class modelClassifier:
@@ -62,6 +63,9 @@ class modelClassifier:
 
         # Perform gradient descent with Adam
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.model.total_cost)
+
+        # Boolean stating that training has not been completed, 
+        self.completed = False 
 
         # tf things: initialize variables and create placeholder for session
         logger.Log("Initializing variables")
@@ -121,9 +125,6 @@ class modelClassifier:
             random.shuffle(training_data)
             avg_cost = 0.
             total_batch = int(len(training_data) / self.batch_size)
-            
-            # Boolean stating that training has not been completed, 
-            self.completed = False 
 
             # Loop over all batches in epoch
             for i in range(total_batch):
@@ -214,6 +215,7 @@ class modelClassifier:
         return genres, np.argmax(logits[1:], axis=1), cost
 
 
+
 classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
 
 """
@@ -223,22 +225,25 @@ load the best checkpoint and get accuracy on the test set. Default setting is to
 
 test = params.train_or_test()
 
+'''
 # While MultiNLI test-sets aren't released, use dev-sets for testing
 test_matched = dev_matched
 test_mismatched = dev_mismatched
-
+'''
 
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
     logger.Log("Acc on matched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
     logger.Log("Acc on mismatched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
     logger.Log("Acc on SNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
-else:
-    logger.Log("Acc on matched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Acc on mismatched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+else:   
+    logger.Log("Acc on matched multiNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on mismatched multiNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Acc on SNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"])[0]))
-    
+    exit(1)
+
     # Results by genre,
     logger.Log("Acc on matched genre dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Acc on mismatched genres dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+    
   
