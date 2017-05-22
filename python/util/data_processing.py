@@ -58,16 +58,14 @@ def load_nli_data_genre(path, genre, snli=True):
         random.shuffle(data)
     return data
 
+def tokenize(string):
+    string = re.sub(r'\(|\)', '', string)
+    return string.split()
 
-def sentences_to_padded_index_sequences(training_datasets, other_datasets):
+def build_dictionary(training_datasets):
     """
-    Annotate datasets with feature vectors. Adding right-sided padding. 
-    """
-    # Extract vocabulary
-    def tokenize(string):
-        string = re.sub(r'\(|\)', '', string)
-        return string.split()
-    
+    Extract vocabulary and build dictionary.
+    """  
     word_counter = collections.Counter()
     for i, dataset in enumerate(training_datasets):
         for example in dataset:
@@ -79,10 +77,13 @@ def sentences_to_padded_index_sequences(training_datasets, other_datasets):
     vocabulary = [PADDING, UNKNOWN] + vocabulary
         
     word_indices = dict(zip(vocabulary, range(len(vocabulary))))
-    indices_to_words = {v: k for k, v in word_indices.items()}
-    
-    datasets = training_datasets + other_datasets
 
+    return word_indices
+
+def sentences_to_padded_index_sequences(word_indices, datasets):
+    """
+    Annotate datasets with feature vectors. Adding right-sided padding. 
+    """
     for i, dataset in enumerate(datasets):
         for example in dataset:
             for sentence in ['sentence1_binary_parse', 'sentence2_binary_parse']:
@@ -100,7 +101,6 @@ def sentences_to_padded_index_sequences(training_datasets, other_datasets):
                     else:
                         index = word_indices[PADDING]
                     example[sentence + '_index_sequence'][i] = index
-    return indices_to_words, word_indices
 
 
 def loadEmbedding_zeros(path, word_indices):
