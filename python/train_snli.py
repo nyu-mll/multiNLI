@@ -25,7 +25,6 @@ MyModel = getattr(module, 'MyModel')
 # This will help ensure nothing goes awry in reloading a model and we consistenyl use the same hyperparameter settings. 
 logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 
-
 ######################### LOAD DATA #############################
 
 logger.Log("Loading data")
@@ -37,9 +36,23 @@ training_mnli = load_nli_data(FIXED_PARAMETERS["training_mnli"])
 dev_matched = load_nli_data(FIXED_PARAMETERS["dev_matched"])
 dev_mismatched = load_nli_data(FIXED_PARAMETERS["dev_mismatched"])
 
+test_matched = load_nli_data(FIXED_PARAMETERS["test_matched"])
+test_mismatched = load_nli_data(FIXED_PARAMETERS["test_mismatched"])
+
+
+dictpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".p"
+
+if not os.path.isfile(dictpath): 
+    logger.Log("Building dictionary")
+    indices_to_words, word_indices = sentences_to_padded_index_sequences([training_snli], [training_mnli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    pickle.dump(word_indices, open(dictpath, "wb"))
+
+else:
+    sentences_to_padded_index_sequences([training_mnli, training_snli], [dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    logger.Log("Loading dictionary from %s" % (dictpath))
+    word_indices = pickle.load(open(dictpath, "rb"))
 
 logger.Log("Loading embeddings")
-indices_to_words, word_indices = sentences_to_padded_index_sequences([training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli])
 loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
 class modelClassifier:
