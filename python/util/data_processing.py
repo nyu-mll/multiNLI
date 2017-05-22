@@ -33,7 +33,7 @@ def load_nli_data(path, snli=False):
             if snli:
                 loaded_example["genre"] = "snli"
             data.append(loaded_example)
-        random.seed(2)
+        random.seed(1)
         random.shuffle(data)
     return data
 

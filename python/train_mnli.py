@@ -47,9 +47,9 @@ dictpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".p"
 if not os.path.isfile(dictpath): 
     logger.Log("Building dictionary")
     if FIXED_PARAMETERS["alpha"] == 0:
-        word_indices, indices_to_words = build_dictionary([training_mnli])
+        word_indices = build_dictionary([training_mnli])
     else:
-        word_indices, indices_to_words = build_dictionary([training_mnli, training_snli])
+        word_indices = build_dictionary([training_mnli, training_snli])
     logger.Log("Padding and indexifying sentences")
     sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
     pickle.dump(word_indices, open(dictpath, "wb"))

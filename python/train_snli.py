@@ -44,9 +44,10 @@ dictpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".p"
 
 if not os.path.isfile(dictpath): 
     logger.Log("Building dictionary")
-    word_indices, indices_to_words = build_dictionary([training_snli])
+    #word_indices = build_dictionary([training_snli])
+    word_indices = build_dictionary([training_snli, training_mnli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
     logger.Log("Padding and indexifying sentences")
-    sentences_to_padded_index_sequences([training_snli, training_mnli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    sentences_to_padded_index_sequences(word_indices, [training_snli, training_mnli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
     pickle.dump(word_indices, open(dictpath, "wb"))
 
 else:
@@ -223,22 +224,24 @@ load the best checkpoint and get accuracy on the test set. Default setting is to
 
 test = params.train_or_test()
 
+"""
 # While test-set isn't released, use dev-sets for testing
 test_matched = dev_matched
 test_mismatched = dev_mismatched
-
+"""
 
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
-    logger.Log("Acc on matched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
-    logger.Log("Acc on mismatched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Acc on matched multiNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Acc on mismatched multiNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
     logger.Log("Acc on SNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 else:
-    logger.Log("Acc on matched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Acc on mismatched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on matched multiNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on mismatched multiNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on SNLI dev-set: %s" %(evaluate_classifier(classifier.classify, dev_snli, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Acc on SNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"])[0]))
     
     # Results by genre,
-    logger.Log("Acc on matched genre dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Acc on mismatched genres dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on matched genre test-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on mismatched genres test-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
   
