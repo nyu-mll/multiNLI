@@ -3,8 +3,8 @@ import re
 import random
 import json
 import collections
-import numpy as np
 import parameters as params
+import pickle
 
 FIXED_PARAMETERS = params.load_parameters()
 
@@ -12,10 +12,11 @@ LABEL_MAP = {
     "entailment": 0,
     "neutral": 1,
     "contradiction": 2,
-    "hidden": 3
+    "hidden": 0
 }
 
 PADDING = "<PAD>"
+UNKNOWN = "<UNK>"
 
 def load_nli_data(path, snli=False):
     """
@@ -32,7 +33,7 @@ def load_nli_data(path, snli=False):
             if snli:
                 loaded_example["genre"] = "snli"
             data.append(loaded_example)
-        random.seed(1)
+        random.seed(2)
         random.shuffle(data)
     return data
 
@@ -58,8 +59,7 @@ def load_nli_data_genre(path, genre, snli=True):
     return data
 
 
-
-def sentences_to_padded_index_sequences(datasets):
+def sentences_to_padded_index_sequences(training_datasets, other_datasets):
     """
     Annotate datasets with feature vectors. Adding right-sided padding. 
     """
@@ -69,18 +69,20 @@ def sentences_to_padded_index_sequences(datasets):
         return string.split()
     
     word_counter = collections.Counter()
-    for i, dataset in enumerate(datasets):
+    for i, dataset in enumerate(training_datasets):
         for example in dataset:
             word_counter.update(tokenize(example['sentence1_binary_parse']))
             word_counter.update(tokenize(example['sentence2_binary_parse']))
         
     vocabulary = set([word for word in word_counter])
     vocabulary = list(vocabulary)
-    vocabulary = [PADDING] + vocabulary
+    vocabulary = [PADDING, UNKNOWN] + vocabulary
         
     word_indices = dict(zip(vocabulary, range(len(vocabulary))))
     indices_to_words = {v: k for k, v in word_indices.items()}
-        
+    
+    datasets = training_datasets + other_datasets
+
     for i, dataset in enumerate(datasets):
         for example in dataset:
             for sentence in ['sentence1_binary_parse', 'sentence2_binary_parse']:
@@ -88,16 +90,17 @@ def sentences_to_padded_index_sequences(datasets):
 
                 token_sequence = tokenize(example[sentence])
                 padding = FIXED_PARAMETERS["seq_length"] - len(token_sequence)
-                      
-                for i in range(FIXED_PARAMETERS["seq_length"]):
-                    if i >= len(token_sequence):
-                        index = word_indices[PADDING]
-                    else:
-                        index = word_indices[token_sequence[i]]
-                    example[sentence + '_index_sequence'][i] = index
-    
-    return indices_to_words, word_indices
 
+                for i in range(FIXED_PARAMETERS["seq_length"]):
+                    if i >= padding:
+                        if token_sequence[i - padding] in word_indices:
+                            index = word_indices[token_sequence[i - padding]]
+                        else:
+                            index = word_indices[UNKNOWN]
+                    else:
+                        index = word_indices[PADDING]
+                    example[sentence + '_index_sequence'][i] = index
+    return indices_to_words, word_indices
 
 
 def loadEmbedding_zeros(path, word_indices):
@@ -131,7 +134,7 @@ def loadEmbedding_rand(path, word_indices):
     emb[:,:] = np.random.normal(size=(n,m))
 
     # Explicitly assign embedding of <PAD> to be zeros.
-    emb[0, :] = np.zeros((1,m), dtype="float32")
+    emb[0:2, :] = np.zeros((1,m), dtype="float32")
     
     with open(path, 'r') as f:
         for i, line in enumerate(f):
