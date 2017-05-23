@@ -69,6 +69,7 @@ if not os.path.isfile(dictpath):
 else:
     logger.Log("Loading dictionary from %s" % (dictpath))
     word_indices = pickle.load(open(dictpath, "rb"))
+    logger.Log("Padding and indexifying sentences")
     sentences_to_padded_index_sequences(word_indices, [training_data,dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
 
 logger.Log("Loading embeddings")

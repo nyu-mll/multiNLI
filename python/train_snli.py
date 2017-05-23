@@ -44,8 +44,8 @@ dictpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".p"
 
 if not os.path.isfile(dictpath): 
     logger.Log("Building dictionary")
-    #word_indices = build_dictionary([training_snli])
-    word_indices = build_dictionary([training_snli, training_mnli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    word_indices = build_dictionary([training_snli])
+    #word_indices = build_dictionary([training_snli, training_mnli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
     logger.Log("Padding and indexifying sentences")
     sentences_to_padded_index_sequences(word_indices, [training_snli, training_mnli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
     pickle.dump(word_indices, open(dictpath, "wb"))
@@ -53,6 +53,7 @@ if not os.path.isfile(dictpath):
 else:
     logger.Log("Loading dictionary from %s" % (dictpath))
     word_indices = pickle.load(open(dictpath, "rb"))
+    logger.Log("Padding and indexifying sentences")
     sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
 
 logger.Log("Loading embeddings")

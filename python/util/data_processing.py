@@ -92,6 +92,7 @@ def sentences_to_padded_index_sequences(word_indices, datasets):
                 token_sequence = tokenize(example[sentence])
                 padding = FIXED_PARAMETERS["seq_length"] - len(token_sequence)
 
+                """
                 for i in range(FIXED_PARAMETERS["seq_length"]):
                     if i >= padding:
                         if token_sequence[i - padding] in word_indices:
@@ -100,6 +101,17 @@ def sentences_to_padded_index_sequences(word_indices, datasets):
                             index = word_indices[UNKNOWN]
                     else:
                         index = word_indices[PADDING]
+                    example[sentence + '_index_sequence'][i] = index
+                """
+
+                for i in range(FIXED_PARAMETERS["seq_length"]):
+                    if i >= len(token_sequence):
+                        index = word_indices[PADDING]
+                    else:
+                        if token_sequence[i] in word_indices:
+                            index = word_indices[token_sequence[i]]
+                        else:
+                            index = word_indices[UNKNOWN]
                     example[sentence + '_index_sequence'][i] = index
 
 
