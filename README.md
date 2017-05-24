@@ -108,7 +108,7 @@ Here is a sample command,
 
 `PYTHONPATH=$PYTHONPATH:. python predictions.py esim petModel-1 --alpha 0.15 --emb_train --logpath ../logs_keep --ckptpath ../logs_keep `
 
-This script will create a CSV with two columns: pairID and prediciton.
+This script will create a CSV with two columns: pairID and gold_label.
 
 
 ### Checkpoints 

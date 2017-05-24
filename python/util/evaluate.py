@@ -73,7 +73,7 @@ def predictions_kaggle(classifier, eval_set, batch_size, name):
 
     f = open( name + '_predictions.csv', 'wb')
     w = csv.writer(f, delimiter = ',')
-    w.writerow(['pairID','prediction'])
+    w.writerow(['pairID','gold_label'])
     for example in predictions:
         w.writerow(example)
     f.close()
