@@ -43,6 +43,20 @@ def biLSTM(inputs, dim, seq_len, name):
     return hidden_states, cell_states
 
 
+def LSTM(inputs, dim, seq_len, name):
+    """
+    An LSTM layer. Returns hidden states and cell states as a tuple.
+
+    Ouput shape of hidden states: (batch_size, max_seq_length, hidden_dim)
+    Same shape for cell states.
+    """
+    with tf.name_scope(name):
+        cell = tf.contrib.rnn.LSTMCell(num_units=dim)
+        hidden_states, cell_states = tf.nn.dynamic_rnn(cell, inputs=inputs, sequence_length=seq_len, dtype=tf.float32, scope=name)
+
+    return hidden_states, cell_states
+
+
 def last_output(output, true_length):
     """
     To get the last hidden layer form a dynamically unrolled RNN.

@@ -43,7 +43,7 @@ class MyModel(object):
         h_diff = premise_rep - hypothesis_rep
         h_mul = premise_rep * hypothesis_rep
 
-        ### MLP HERE (without dropout)
+        ### MLP
         mlp_input = tf.concat([premise_rep, hypothesis_rep, h_diff, h_mul], 1)
         h_1 = tf.nn.relu(tf.matmul(mlp_input, self.W_0) + self.b_0)
         h_2 = tf.nn.relu(tf.matmul(h_1, self.W_1) + self.b_1)

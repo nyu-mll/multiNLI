@@ -23,7 +23,7 @@ class MyModel(object):
         self.W_cl = tf.Variable(tf.random_normal([self.dim, 3], stddev=0.1))
         self.b_cl = tf.Variable(tf.random_normal([3], stddev=0.1))
         
-        ## Fucntion for embedding lookup and dropout at embedding layer
+        ## Function for embedding lookup and dropout at embedding layer
         def emb_drop(x):
             emb = tf.nn.embedding_lookup(self.E, x)
             emb_drop = tf.nn.dropout(emb, self.keep_rate_ph)
@@ -61,7 +61,6 @@ class MyModel(object):
 
         # MLP layer
         h_mlp = tf.nn.relu(tf.matmul(h, self.W_mlp) + self.b_mlp)
-
         # Dropout applied to classifier
         h_drop = tf.nn.dropout(h_mlp, self.keep_rate_ph)
 
