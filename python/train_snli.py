@@ -224,11 +224,11 @@ load the best checkpoint and get accuracy on the test set. Default setting is to
 
 test = params.train_or_test()
 
-"""
+
 # While test-set isn't released, use dev-sets for testing
 test_matched = dev_matched
 test_mismatched = dev_mismatched
-"""
+
 
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
