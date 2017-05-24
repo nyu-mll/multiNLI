@@ -91,11 +91,24 @@ To execute all of the following sample commands, you must be in the "python" fol
 
 ### Testing models
 
+#### On dev set,
 To test a trained model, simply add the `test` flag to the command used for training. The best checkpoint will be loaded and used to evaluate the model's performance on the MultiNLI dev-sets, SNLI test-set, and the dev-set for each genre in MultiNLI.
 
 For example,
 
 `PYTHONPATH=$PYTHONPATH:. python train_genre.py esim petModel-2 --genre travel --emb_train --test`
+
+
+With the `test` flag, the `train_mnli.py` script will also generate a CSV of predicitons for the unlabaled matched and mismatched test-sets.
+
+#### Results for unlabeled test sets,
+To get a CSV of predicted results for unlabeled test sets use `predicitons.py`. This script requires the same flags as the training scripts. You must enter the `model_type` and `model_name`, and the path to the saved checkpoint and log files if they are different from the default (the default is set ot `../logs` for both paths). 
+
+Here is a sample command,
+
+`PYTHONPATH=$PYTHONPATH:. python predictions.py esim petModel-1 --alpha 0.15 --emb_train --logpath ../logs_keep --ckptpath ../logs_keep `
+
+This script will create a CSV with two columns: pairID and prediciton.
 
 
 ### Checkpoints 
