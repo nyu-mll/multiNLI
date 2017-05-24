@@ -11,7 +11,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-models = ['esim','cbow', 'bilstm']
+models = ['esim','cbow', 'bilstm', 'lstm']
 def types(s):
     options = [mod for mod in models if s in models]
     if len(options) == 1:
