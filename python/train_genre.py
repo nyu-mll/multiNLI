@@ -53,8 +53,10 @@ dev_snli = load_nli_data(FIXED_PARAMETERS["dev_snli"], snli=True)
 test_snli = load_nli_data(FIXED_PARAMETERS["test_snli"], snli=True)
 dev_matched = load_nli_data(FIXED_PARAMETERS["dev_matched"])
 dev_mismatched = load_nli_data(FIXED_PARAMETERS["dev_mismatched"])
-test_matched = load_nli_data(FIXED_PARAMETERS["test_matched"])
-test_mismatched = load_nli_data(FIXED_PARAMETERS["test_mismatched"])
+
+# Commented out section using test data
+#test_matched = load_nli_data(FIXED_PARAMETERS["test_matched"])
+#test_mismatched = load_nli_data(FIXED_PARAMETERS["test_mismatched"])
 
 
 dictpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".p"
@@ -63,14 +65,16 @@ if not os.path.isfile(dictpath):
     logger.Log("Building dictionary")
     word_indices = build_dictionary([training_data])
     logger.Log("Padding and indexifying sentences")
-    sentences_to_padded_index_sequences(word_indices, [training_data, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    sentences_to_padded_index_sequences(word_indices, [training_data, dev_matched, dev_mismatched, dev_snli, test_snli])
+    #sentences_to_padded_index_sequences(word_indices, [training_data, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
     pickle.dump(word_indices, open(dictpath, "wb"))
 
 else:
     logger.Log("Loading dictionary from %s" % (dictpath))
     word_indices = pickle.load(open(dictpath, "rb"))
     logger.Log("Padding and indexifying sentences")
-    sentences_to_padded_index_sequences(word_indices, [training_data,dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    sentences_to_padded_index_sequences(word_indices, [training_data,dev_matched, dev_mismatched, dev_snli, test_snli])
+    #sentences_to_padded_index_sequences(word_indices, [training_data,dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
 
 logger.Log("Loading embeddings")
 loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
@@ -256,30 +260,24 @@ test_mismatched = dev_mismatched
 
 if test == False:
     classifier.train(training_data, dev_matched, dev_mismatched, dev_snli)
-    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
+    logger.Log("Dev acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
     test_matched, FIXED_PARAMETERS["batch_size"]))[0])
 
-    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
+    logger.Log("Dev acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
     test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
 
     logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, \
         test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 else:
-    logger.Log("Test acc on matched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
-    test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+    else: 
+    results = evaluate_final(classifier.restore, classifier.classify, [test_matched, test_mismatched, test_snli], FIXED_PARAMETERS["batch_size"])
+    logger.Log("Acc on multiNLI matched dev-set: %s" %(results[0]))
+    logger.Log("Acc on multiNLI mismatched dev-set: %s" %(results[1]))
+    logger.Log("Acc on SNLI test set: %s" %(results[2]))
 
-    logger.Log("Test acc on mismatched multiNLI: %s" %(evaluate_classifier(classifier.classify, \
-        test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
-
-    logger.Log("Test acc on SNLI: %s" %(evaluate_classifier(classifier.classify, \
-        test_snli, FIXED_PARAMETERS["batch_size"])[0]))
-    
     # Results by genre,
-    logger.Log("Test acc on matched genres: %s" %(evaluate_classifier_genre(classifier.classify, \
-        test_matched, FIXED_PARAMETERS["batch_size"])[0]))
-
-    logger.Log("Test acc on mismatched genres: %s" %(evaluate_classifier_genre(classifier.classify, \
-        test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on matched genre dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on mismatched genres dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
   
 
   

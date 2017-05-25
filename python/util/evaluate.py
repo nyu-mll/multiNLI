@@ -48,6 +48,29 @@ def evaluate_classifier_genre(classifier, eval_set, batch_size):
 
     return accuracy, cost
 
+def evaluate_final(restore, classifier, eval_sets, batch_size):
+    """
+    Function to get accuracy and cost of the model, evaluated on a chosen dataset.
+
+    classifier: the model's classfier, it should return genres, logit values, and cost for a given minibatch of the evaluation dataset
+    eval_set: the chosen evaluation set, for eg. the dev-set
+    batch_size: the size of minibatches.
+    """
+    restore(best=True)
+    percentages = []
+    for eval_set in eval_sets:
+        genres, hypotheses, cost = classifier(eval_set)
+        correct = 0
+        cost = cost / batch_size
+        full_batch = int(len(eval_set) / batch_size) * batch_size
+
+        for i in range(full_batch):
+            hypothesis = hypotheses[i]
+            if hypothesis == eval_set[i]['label']:
+                correct += 1      
+        percentages.append(correct / float(len(eval_set)))  
+    return percentages
+
 
 def predictions_kaggle(classifier, eval_set, batch_size, name):
     """
@@ -69,7 +92,7 @@ def predictions_kaggle(classifier, eval_set, batch_size, name):
         pairID = eval_set[i]["pairID"]  
         predictions.append((pairID, prediction))
 
-    predictions = sorted(predictions, key=lambda x: int(x[0]))
+    #predictions = sorted(predictions, key=lambda x: int(x[0]))
 
     f = open( name + '_predictions.csv', 'wb')
     w = csv.writer(f, delimiter = ',')

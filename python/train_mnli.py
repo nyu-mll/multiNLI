@@ -38,8 +38,9 @@ training_mnli = load_nli_data(FIXED_PARAMETERS["training_mnli"])
 dev_matched = load_nli_data(FIXED_PARAMETERS["dev_matched"])
 dev_mismatched = load_nli_data(FIXED_PARAMETERS["dev_mismatched"])
 
-test_matched = load_nli_data(FIXED_PARAMETERS["test_matched"])
-test_mismatched = load_nli_data(FIXED_PARAMETERS["test_mismatched"])
+# Commented out section using test data
+#test_matched = load_nli_data(FIXED_PARAMETERS["test_matched"])
+#test_mismatched = load_nli_data(FIXED_PARAMETERS["test_mismatched"])
 
 
 dictpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".p"
@@ -50,15 +51,18 @@ if not os.path.isfile(dictpath):
         word_indices = build_dictionary([training_mnli])
     else:
         word_indices = build_dictionary([training_mnli, training_snli])
+    
     logger.Log("Padding and indexifying sentences")
-    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli])
+    #sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
     pickle.dump(word_indices, open(dictpath, "wb"))
 
 else:
     logger.Log("Loading dictionary from %s" % (dictpath))
     word_indices = pickle.load(open(dictpath, "rb"))
     logger.Log("Padding and indexifying sentences")
-    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    #sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli])
 
 logger.Log("Loading embeddings")
 loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
@@ -234,6 +238,43 @@ class modelClassifier:
 
         return genres, np.argmax(logits[1:], axis=1), cost
 
+    def restore(self, best=True):
+        if True:
+            path = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best"
+        else:
+            path = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
+        self.sess = tf.Session()
+        self.sess.run(self.init)
+        self.saver.restore(self.sess, path)
+        logger.Log("Model restored from file: %s" % path)
+
+    def classify(self, examples):
+        # This classifies a list of examples
+        """
+        if (test == True) or (self.completed == True):
+            best_path = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best"
+            self.sess = tf.Session()
+            self.sess.run(self.init)
+            self.saver.restore(self.sess, best_path)
+            logger.Log("Model restored from file: %s" % best_path)
+        """
+
+        total_batch = int(len(examples) / self.batch_size)
+        logits = np.empty(3)
+        genres = []
+        for i in range(total_batch):
+            minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels, minibatch_genres = self.get_minibatch(
+                examples, self.batch_size * i, self.batch_size * (i + 1))
+            feed_dict = {self.model.premise_x: minibatch_premise_vectors, 
+                                self.model.hypothesis_x: minibatch_hypothesis_vectors,
+                                self.model.y: minibatch_labels, 
+                                self.model.keep_rate_ph: 1.0}
+            genres += minibatch_genres
+            logit, cost = self.sess.run([self.model.logits, self.model.total_cost], feed_dict)
+            logits = np.vstack([logits, logit])
+
+        return genres, np.argmax(logits[1:], axis=1), cost
+
 
 
 classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
@@ -245,11 +286,10 @@ load the best checkpoint and get accuracy on the test set. Default setting is to
 
 test = params.train_or_test()
 
-"""
 # While test-set isn't released, use dev-sets for testing
 test_matched = dev_matched
 test_mismatched = dev_mismatched
-"""
+
 
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
@@ -257,10 +297,11 @@ if test == False:
     logger.Log("Acc on mismatched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
     logger.Log("Acc on SNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 else: 
-    logger.Log("Acc on matched multiNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Acc on mismatched multiNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Acc on SNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"])[0]))
-    exit(1)
+    results = evaluate_final(classifier.restore, classifier.classify, [test_matched, test_mismatched, test_snli], FIXED_PARAMETERS["batch_size"])
+    logger.Log("Acc on multiNLI matched dev-set: %s" %(results[0]))
+    logger.Log("Acc on multiNLI mismatched dev-set: %s" %(results[1]))
+    logger.Log("Acc on SNLI test set: %s" %(results[2]))
+
     # Results by genre,
     logger.Log("Acc on matched genre dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Acc on mismatched genres dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
