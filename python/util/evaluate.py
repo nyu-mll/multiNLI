@@ -50,8 +50,9 @@ def evaluate_classifier_genre(classifier, eval_set, batch_size):
 
 def evaluate_final(restore, classifier, eval_sets, batch_size):
     """
-    Function to get accuracy and cost of the model, evaluated on a chosen dataset.
-
+    Function to get percentage accuracy of the model, evaluated on a set of chosen datasets.
+    
+    restore: a function to restore a stored checkpoint
     classifier: the model's classfier, it should return genres, logit values, and cost for a given minibatch of the evaluation dataset
     eval_set: the chosen evaluation set, for eg. the dev-set
     batch_size: the size of minibatches.

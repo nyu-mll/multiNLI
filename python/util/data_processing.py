@@ -126,7 +126,6 @@ def loadEmbedding_rand(path, word_indices):
     """
     Load GloVe embeddings. Doing a random normal initialization for OOV words.
     """
-    j = 0
     n = len(word_indices)
     m = FIXED_PARAMETERS["word_embedding_dim"]
     emb = np.empty((n, m), dtype=np.float32)

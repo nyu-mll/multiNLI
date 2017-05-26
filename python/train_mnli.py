@@ -37,11 +37,13 @@ test_snli = load_nli_data(FIXED_PARAMETERS["test_snli"], snli=True)
 training_mnli = load_nli_data(FIXED_PARAMETERS["training_mnli"])
 dev_matched = load_nli_data(FIXED_PARAMETERS["dev_matched"])
 dev_mismatched = load_nli_data(FIXED_PARAMETERS["dev_mismatched"])
+test_matched = load_nli_data(FIXED_PARAMETERS["test_matched"])
+test_mismatched = load_nli_data(FIXED_PARAMETERS["test_mismatched"])
 
-# Commented out section using test data
-#test_matched = load_nli_data(FIXED_PARAMETERS["test_matched"])
-#test_mismatched = load_nli_data(FIXED_PARAMETERS["test_mismatched"])
-
+if 'temp.jsonl' in FIXED_PARAMETERS["test_matched"]:
+    # Removing temporary empty file that was created in parameters.py
+    os.remove(FIXED_PARAMETERS["test_matched"])
+    logger.Log("Created and removed empty file called temp.jsonl since test set is not available.")
 
 dictpath = os.path.join(FIXED_PARAMETERS["log_path"], modname) + ".p"
 
@@ -53,16 +55,14 @@ if not os.path.isfile(dictpath):
         word_indices = build_dictionary([training_mnli, training_snli])
     
     logger.Log("Padding and indexifying sentences")
-    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli])
-    #sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
     pickle.dump(word_indices, open(dictpath, "wb"))
 
 else:
     logger.Log("Loading dictionary from %s" % (dictpath))
     word_indices = pickle.load(open(dictpath, "rb"))
     logger.Log("Padding and indexifying sentences")
-    #sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
-    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli])
+    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
 
 logger.Log("Loading embeddings")
 loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
@@ -250,15 +250,6 @@ class modelClassifier:
 
     def classify(self, examples):
         # This classifies a list of examples
-        """
-        if (test == True) or (self.completed == True):
-            best_path = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt_best"
-            self.sess = tf.Session()
-            self.sess.run(self.init)
-            self.saver.restore(self.sess, best_path)
-            logger.Log("Model restored from file: %s" % best_path)
-        """
-
         total_batch = int(len(examples) / self.batch_size)
         logits = np.empty(3)
         genres = []
@@ -290,7 +281,6 @@ test = params.train_or_test()
 test_matched = dev_matched
 test_mismatched = dev_mismatched
 
-
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
     logger.Log("Acc on matched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
@@ -305,5 +295,3 @@ else:
     # Results by genre,
     logger.Log("Acc on matched genre dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
     logger.Log("Acc on mismatched genres dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
-    
-  
