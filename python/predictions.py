@@ -1,6 +1,5 @@
 """
-Training script to train a model on MultiNLI and, optionally, on SNLI data as well.
-The "alpha" hyperparamaters set in paramaters.py determines if SNLI data is used in training. If alpha = 0, no SNLI data is used in training. If alpha > 0, then down-sampled SNLI data is used in training. 
+Script to generate a CSV file of predictions on the test data.
 """
 
 import tensorflow as tf
@@ -114,8 +113,8 @@ Get CSVs of predictions.
 """
 
 logger.Log("Creating CSV of predicitons on matched test set: %s" %(modname+"_matched_predictions.csv"))
-predictions_kaggle(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"], modname+"_matched")
+predictions_kaggle(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"], modname+"_dev_matched")
 
 logger.Log("Creating CSV of predicitons on mismatched test set: %s" %(modname+"_mismatched_predictions.csv"))
-predictions_kaggle(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"], modname+"_mismatched")
+predictions_kaggle(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"], modname+"_dev_mismatched")
 
