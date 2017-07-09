@@ -99,10 +99,10 @@ For example,
 `PYTHONPATH=$PYTHONPATH:. python train_genre.py esim petModel-2 --genre travel --emb_train --test`
 
 
-With the `test` flag, the `train_mnli.py` script will also generate a CSV of predicitons for the unlabaled matched and mismatched test-sets.
+With the `test` flag, the `train_mnli.py` script will also generate a CSV of predictions for the unlabaled matched and mismatched test-sets.
 
 #### Results for unlabeled test sets,
-To get a CSV of predicted results for unlabeled test sets use `predicitons.py`. This script requires the same flags as the training scripts. You must enter the `model_type` and `model_name`, and the path to the saved checkpoint and log files if they are different from the default (the default is set ot `../logs` for both paths). 
+To get a CSV of predicted results for unlabeled test sets use `predictions.py`. This script requires the same flags as the training scripts. You must enter the `model_type` and `model_name`, and the path to the saved checkpoint and log files if they are different from the default (the default is set ot `../logs` for both paths). 
 
 Here is a sample command,
 
