@@ -247,26 +247,7 @@ class modelClassifier:
         self.sess.run(self.init)
         self.saver.restore(self.sess, path)
         logger.Log("Model restored from file: %s" % path)
-
-    def classify(self, examples):
-        # This classifies a list of examples
-        total_batch = int(len(examples) / self.batch_size)
-        logits = np.empty(3)
-        genres = []
-        for i in range(total_batch):
-            minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels, minibatch_genres = self.get_minibatch(
-                examples, self.batch_size * i, self.batch_size * (i + 1))
-            feed_dict = {self.model.premise_x: minibatch_premise_vectors, 
-                                self.model.hypothesis_x: minibatch_hypothesis_vectors,
-                                self.model.y: minibatch_labels, 
-                                self.model.keep_rate_ph: 1.0}
-            genres += minibatch_genres
-            logit, cost = self.sess.run([self.model.logits, self.model.total_cost], feed_dict)
-            logits = np.vstack([logits, logit])
-
-        return genres, np.argmax(logits[1:], axis=1), cost
-
-
+        
 
 classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
 
