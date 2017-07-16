@@ -62,7 +62,7 @@ logger.Log("Loading embeddings")
 loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
 
 class modelClassifier:
-    def __init__(self, seq_length):
+    def __init__(self, seq_length, loaded_embeddings):
         ## Define hyperparameters
         self.learning_rate =  FIXED_PARAMETERS["learning_rate"]
         self.display_epoch_freq = 1
@@ -74,6 +74,7 @@ class modelClassifier:
         self.keep_rate = FIXED_PARAMETERS["keep_rate"]
         self.sequence_length = FIXED_PARAMETERS["seq_length"] 
         self.alpha = FIXED_PARAMETERS["alpha"]
+        self.word_embeddings = loaded_embeddings
 
         logger.Log("Building model from %s.py" %(model))
         self.model = MyModel(seq_length=self.sequence_length, emb_dim=self.embedding_dim,  hidden_dim=self.dim, embeddings=loaded_embeddings, emb_train=self.emb_train)
@@ -110,7 +111,7 @@ class modelClassifier:
         self.best_strain_acc = 0.
         self.last_train_acc = [.001, .001, .001, .001, .001]
         self.best_step = 0
-
+        self.sess.run(self.model.embedding_init, feed_dict={self.model.embedding_placeholder: self.word_embeddings})
         # Restore most recent checkpoint if it exists. 
         # Also restore values for best dev-set accuracy and best training-set accuracy.
         ckpt_file = os.path.join(FIXED_PARAMETERS["ckpt_path"], modname) + ".ckpt"
@@ -221,7 +222,7 @@ class modelClassifier:
         return genres, np.argmax(logits[1:], axis=1), cost
 
 
-classifier = modelClassifier(FIXED_PARAMETERS["seq_length"])
+classifier = modelClassifier(FIXED_PARAMETERS["seq_length"], loaded_embeddings)
 
 """
 Either train the model and then run it on the test-sets or 
