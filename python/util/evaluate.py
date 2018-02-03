@@ -86,9 +86,10 @@ def evaluate_final(restore, classifier, eval_sets, batch_size):
     """
     restore(best=True)
     percentages = []
-    bylength_prem = {}
-    bylength_hyp = {}
+    length_results = []
     for eval_set in eval_sets:
+        bylength_prem {}
+        bylength_hyp = {}
         genres, hypotheses, cost = classifier(eval_set)
         correct = 0
         cost = cost / batch_size
@@ -112,7 +113,8 @@ def evaluate_final(restore, classifier, eval_sets, batch_size):
                 bylength_prem[length_1][0] += 1
                 bylength_hyp[length_2][0] += 1    
         percentages.append(correct / float(len(eval_set)))  
-    return percentages, (bylength_prem, bylength_hyp)
+        length_results.append((bylength_prem, bylength_hyp))
+    return percentages, length_results
 
 
 def predictions_kaggle(classifier, eval_set, batch_size, name):
