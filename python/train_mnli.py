@@ -1,6 +1,7 @@
 """
 Training script to train a model on MultiNLI and, optionally, on SNLI data as well.
-The "alpha" hyperparamaters set in paramaters.py determines if SNLI data is used in training. If alpha = 0, no SNLI data is used in training. If alpha > 0, then down-sampled SNLI data is used in training. 
+The "alpha" hyperparamaters set in paramaters.py determines if SNLI data is used in training. 
+If alpha = 0, no SNLI data is used in training. If alpha > 0, then down-sampled SNLI data is used in training. 
 """
 
 import tensorflow as tf
@@ -23,7 +24,7 @@ module = importlib.import_module(".".join(['models', model]))
 MyModel = getattr(module, 'MyModel')
 
 # Logging parameter settings at each launch of training script
-# This will help ensure nothing goes awry in reloading a model and we consistenyl use the same hyperparameter settings. 
+# This will help ensure nothing goes awry in reloading a model and we consistently use the same hyperparameter settings. 
 logger.Log("FIXED_PARAMETERS\n %s" % FIXED_PARAMETERS)
 
 
@@ -55,14 +56,18 @@ if not os.path.isfile(dictpath):
         word_indices = build_dictionary([training_mnli, training_snli])
     
     logger.Log("Padding and indexifying sentences")
-    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, 
+                                        dev_matched, dev_mismatched, dev_snli, test_snli, 
+                                        test_matched, test_mismatched])
     pickle.dump(word_indices, open(dictpath, "wb"))
 
 else:
     logger.Log("Loading dictionary from %s" % (dictpath))
     word_indices = pickle.load(open(dictpath, "rb"))
     logger.Log("Padding and indexifying sentences")
-    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli, test_snli, test_matched, test_mismatched])
+    sentences_to_padded_index_sequences(word_indices, [training_mnli, training_snli, 
+                                        dev_matched, dev_mismatched, dev_snli, 
+                                        test_snli, test_matched, test_mismatched])
 
 logger.Log("Loading embeddings")
 loaded_embeddings = loadEmbedding_rand(FIXED_PARAMETERS["embedding_data_path"], word_indices)
@@ -83,7 +88,9 @@ class modelClassifier:
         self.alpha = FIXED_PARAMETERS["alpha"]
 
         logger.Log("Building model from %s.py" %(model))
-        self.model = MyModel(seq_length=self.sequence_length, emb_dim=self.embedding_dim,  hidden_dim=self.dim, embeddings=loaded_embeddings, emb_train=self.emb_train)
+        self.model = MyModel(seq_length=self.sequence_length, emb_dim=self.embedding_dim, 
+                                hidden_dim=self.dim, embeddings=loaded_embeddings, 
+                                emb_train=self.emb_train)
 
         # Perform gradient descent with Adam
         self.optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.9, beta2=0.999).minimize(self.model.total_cost)
@@ -130,9 +137,14 @@ class modelClassifier:
                 self.best_mtrain_acc, mtrain_cost = evaluate_classifier(self.classify, train_mnli[0:5000], self.batch_size)
                 if self.alpha != 0.:
                     self.best_strain_acc, strain_cost = evaluate_classifier(self.classify, train_snli[0:5000], self.batch_size)
-                    logger.Log("Restored best matched-dev acc: %f\n Restored best mismatched-dev acc: %f\n Restored best SNLI-dev acc: %f\n Restored best MulitNLI train acc: %f\n Restored best SNLI train acc: %f" %(self.best_dev_mat, best_dev_mismat, best_dev_snli,  self.best_mtrain_acc,  self.best_strain_acc))
+                    logger.Log("Restored best matched-dev acc: %f\n Restored best mismatched-dev acc: %f\n \
+                            Restored best SNLI-dev acc: %f\n Restored best MulitNLI train acc: %f\n \
+                            Restored best SNLI train acc: %f" %(self.best_dev_mat, best_dev_mismat, best_dev_snli, 
+                            self.best_mtrain_acc, self.best_strain_acc))
                 else:
-                    logger.Log("Restored best matched-dev acc: %f\n Restored best mismatched-dev acc: %f\n Restored best SNLI-dev acc: %f\n Restored best MulitNLI train acc: %f" %(self.best_dev_mat, best_dev_mismat, best_dev_snli, self.best_mtrain_acc))
+                    logger.Log("Restored best matched-dev acc: %f\n Restored best mismatched-dev acc: %f\n \
+                         Restored best SNLI-dev acc: %f\n Restored best MulitNLI train acc: %f" 
+                         % (self.best_dev_mat, best_dev_mismat, best_dev_snli, self.best_mtrain_acc))
 
             self.saver.restore(self.sess, ckpt_file)
             logger.Log("Model restored from file: %s" % ckpt_file)
@@ -174,11 +186,19 @@ class modelClassifier:
 
                     if self.alpha != 0.:
                         strain_acc, strain_cost = evaluate_classifier(self.classify, train_snli[0:5000], self.batch_size)
-                        logger.Log("Step: %i\t Dev-matched acc: %f\t Dev-mismatched acc: %f\t Dev-SNLI acc: %f\t MultiNLI train acc: %f\t SNLI train acc: %f" %(self.step, dev_acc_mat, dev_acc_mismat, dev_acc_snli, mtrain_acc, strain_acc))
-                        logger.Log("Step: %i\t Dev-matched cost: %f\t Dev-mismatched cost: %f\t Dev-SNLI cost: %f\t MultiNLI train cost: %f\t SNLI train cost: %f" %(self.step, dev_cost_mat, dev_cost_mismat, dev_cost_snli, mtrain_cost, strain_cost))
+                        logger.Log("Step: %i\t Dev-matched acc: %f\t Dev-mismatched acc: %f\t \
+                            Dev-SNLI acc: %f\t MultiNLI train acc: %f\t SNLI train acc: %f" 
+                            % (self.step, dev_acc_mat, dev_acc_mismat, dev_acc_snli, mtrain_acc, strain_acc))
+                        logger.Log("Step: %i\t Dev-matched cost: %f\t Dev-mismatched cost: %f\t \
+                            Dev-SNLI cost: %f\t MultiNLI train cost: %f\t SNLI train cost: %f" 
+                            % (self.step, dev_cost_mat, dev_cost_mismat, dev_cost_snli, mtrain_cost, strain_cost))
                     else:
-                        logger.Log("Step: %i\t Dev-matched acc: %f\t Dev-mismatched acc: %f\t Dev-SNLI acc: %f\t MultiNLI train acc: %f" %(self.step, dev_acc_mat, dev_acc_mismat, dev_acc_snli, mtrain_acc))
-                        logger.Log("Step: %i\t Dev-matched cost: %f\t Dev-mismatched cost: %f\t Dev-SNLI cost: %f\t MultiNLI train cost: %f" %(self.step, dev_cost_mat, dev_cost_mismat, dev_cost_snli, mtrain_cost))
+                        logger.Log("Step: %i\t Dev-matched acc: %f\t Dev-mismatched acc: %f\t \
+                            Dev-SNLI acc: %f\t MultiNLI train acc: %f" %(self.step, dev_acc_mat, 
+                                dev_acc_mismat, dev_acc_snli, mtrain_acc))
+                        logger.Log("Step: %i\t Dev-matched cost: %f\t Dev-mismatched cost: %f\t \
+                            Dev-SNLI cost: %f\t MultiNLI train cost: %f" %(self.step, dev_cost_mat, 
+                                dev_cost_mismat, dev_cost_snli, mtrain_cost))
 
                 if self.step % 500 == 0:
                     self.saver.save(self.sess, ckpt_file)
@@ -226,8 +246,8 @@ class modelClassifier:
         logits = np.empty(3)
         genres = []
         for i in range(total_batch):
-            minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels, minibatch_genres = self.get_minibatch(
-                examples, self.batch_size * i, self.batch_size * (i + 1))
+            minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels, minibatch_genres = self.get_minibatch(examples, 
+                                    self.batch_size * i, self.batch_size * (i + 1))
             feed_dict = {self.model.premise_x: minibatch_premise_vectors, 
                                 self.model.hypothesis_x: minibatch_hypothesis_vectors,
                                 self.model.y: minibatch_labels, 
@@ -254,8 +274,8 @@ class modelClassifier:
         logits = np.empty(3)
         genres = []
         for i in range(total_batch):
-            minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels, minibatch_genres = self.get_minibatch(
-                examples, self.batch_size * i, self.batch_size * (i + 1))
+            minibatch_premise_vectors, minibatch_hypothesis_vectors, minibatch_labels, minibatch_genres = self.get_minibatch(examples, 
+                                    self.batch_size * i, self.batch_size * (i + 1))
             feed_dict = {self.model.premise_x: minibatch_premise_vectors, 
                                 self.model.hypothesis_x: minibatch_hypothesis_vectors,
                                 self.model.y: minibatch_labels, 
@@ -278,20 +298,31 @@ load the best checkpoint and get accuracy on the test set. Default setting is to
 test = params.train_or_test()
 
 # While test-set isn't released, use dev-sets for testing
-test_matched = dev_matched
-test_mismatched = dev_mismatched
+#test_matched = dev_matched
+#test_mismatched = dev_mismatched
+print("ALL RESULTS ON TEST")
 
 if test == False:
     classifier.train(training_mnli, training_snli, dev_matched, dev_mismatched, dev_snli)
-    logger.Log("Acc on matched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
-    logger.Log("Acc on mismatched multiNLI dev-set: %s" %(evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
-    logger.Log("Acc on SNLI test-set: %s" %(evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Acc on matched multiNLI dev-set: %s" 
+        % (evaluate_classifier(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Acc on mismatched multiNLI dev-set: %s" 
+        % (evaluate_classifier(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"]))[0])
+    logger.Log("Acc on SNLI test-set: %s" 
+        % (evaluate_classifier(classifier.classify, test_snli, FIXED_PARAMETERS["batch_size"]))[0])
 else: 
-    results = evaluate_final(classifier.restore, classifier.classify, [test_matched, test_mismatched, test_snli], FIXED_PARAMETERS["batch_size"])
+    results, bylength = evaluate_final(classifier.restore, classifier.classify, 
+        [test_matched, test_mismatched, test_snli], FIXED_PARAMETERS["batch_size"])
     logger.Log("Acc on multiNLI matched dev-set: %s" %(results[0]))
     logger.Log("Acc on multiNLI mismatched dev-set: %s" %(results[1]))
     logger.Log("Acc on SNLI test set: %s" %(results[2]))
+    
+    dumppath = os.path.join("./", modname) + "_length.p"
+    pickle.dump(bylength, open(dumppath, "wb"))
 
     # Results by genre,
-    logger.Log("Acc on matched genre dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
-    logger.Log("Acc on mismatched genres dev-sets: %s" %(evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on matched genre dev-sets: %s" 
+        % (evaluate_classifier_genre(classifier.classify, test_matched, FIXED_PARAMETERS["batch_size"])[0]))
+    logger.Log("Acc on mismatched genres dev-sets: %s" 
+        % (evaluate_classifier_genre(classifier.classify, test_mismatched, FIXED_PARAMETERS["batch_size"])[0]))
+
