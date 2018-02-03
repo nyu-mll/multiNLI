@@ -317,8 +317,8 @@ else:
     logger.Log("Acc on multiNLI mismatched dev-set: %s" %(results[1]))
     logger.Log("Acc on SNLI test set: %s" %(results[2]))
     
-    dumppath = os.path.join("./", modname) + "_length.p"
-    pickle.dump(bylength, open(dumppath, "wb"))
+    #dumppath = os.path.join("./", modname) + "_length.p"
+    #pickle.dump(bylength, open(dumppath, "wb"))
 
     # Results by genre,
     logger.Log("Acc on matched genre dev-sets: %s" 
