@@ -88,7 +88,7 @@ def evaluate_final(restore, classifier, eval_sets, batch_size):
     percentages = []
     length_results = []
     for eval_set in eval_sets:
-        bylength_prem {}
+        bylength_prem = {}
         bylength_hyp = {}
         genres, hypotheses, cost = classifier(eval_set)
         correct = 0
