@@ -115,9 +115,9 @@ This script will create a CSV with two columns: pairID and gold_label.
 
 We maintain two checkpoints: the most recent checkpoint and the best checkpoint. Every 500 steps, the most recent checkpoint is updated, and we test to see if the dev-set accuracy has improved by at least 0.04%. If the accuracy has gone up by at least 0.04%, then the best checkpoint is updated.
 
-### Annotation Tags Script
+### Annotation Tags 
 
-The script which was used to determine the percentage of annotation tags is available in this repository, within the subfolder "python"
+The script which was used to determine the percentage of annotation tags is available in this repository, within the subfolder "python" under the name "autotags.py". It takes a parsed corpus file (e.g., a dev set file) and reports the percentages of annotation tags in that file. You should also update your paths in the script to reflect your local file organization.
 
 ## License
 
