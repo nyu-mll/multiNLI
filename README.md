@@ -46,7 +46,7 @@ To start training with any of the training scripts, there are a couple of requir
 
 Required flags,
 
-- `model_type`: there are three model types in this repository, `cbow`, `bilstm`, and `cbow`. You must state which model you want to use.
+- `model_type`: there are three model types in this repository, `cbow`, `bilstm`, and `esim`. You must state which model you want to use.
 - `model_name`: this is your experiment name. This name will be used the prefix the log and checkpoint files. 
 
 Optional flags,
