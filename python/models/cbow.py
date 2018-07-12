@@ -14,7 +14,15 @@ class MyModel(object):
         self.keep_rate_ph = tf.placeholder(tf.float32, [])
 
         ## Define remaning parameters 
-        self.E = tf.Variable(embeddings, trainable=emb_train, name="emb")
+        # self.E = tf.Variable(embeddings, trainable=emb_train, name="emb")
+
+        with tf.device('/cpu:0'):
+            self.E = tf.Variable(tf.random_uniform(embeddings.shape, -1.0,1.0),
+                        trainable=emb_train, name="W")
+            self.embedding_placeholder = tf.placeholder(tf.float32, embeddings.shape)
+            self.embedding_init = self.E.assign(self.embedding_placeholder)
+
+
 
         self.W_0 = tf.Variable(tf.random_normal([self.embedding_dim * 4, self.dim], stddev=0.1), name="w0")
         self.b_0 = tf.Variable(tf.random_normal([self.dim], stddev=0.1), name="b0")
