@@ -107,7 +107,9 @@ def loadEmbedding_zeros(path, word_indices):
     """
     Load GloVe embeddings. Initializng OOV words to vector of zeros.
     """
-    emb = np.zeros((len(word_indices), FIXED_PARAMETERS["word_embedding_dim"]), dtype='float32')
+    n = len(word_indices)
+    m = FIXED_PARAMETERS["word_embedding_dim"]
+    emb = np.zeros((n, m), dtype='float32')
     
     with open(path, 'r') as f:
         for i, line in enumerate(f):
@@ -117,7 +119,7 @@ def loadEmbedding_zeros(path, word_indices):
             
             s = line.split()
             if s[0] in word_indices:
-                emb[word_indices[s[0]], :] = np.asarray(s[1:])
+                emb[word_indices[s[0]], :] = np.asarray(s[-m:])
 
     return emb
 
@@ -143,7 +145,7 @@ def loadEmbedding_rand(path, word_indices):
             
             s = line.split()
             if s[0] in word_indices:
-                emb[word_indices[s[0]], :] = np.asarray(s[1:])
+                emb[word_indices[s[0]], :] = np.asarray(s[-m:])
 
     return emb
 
