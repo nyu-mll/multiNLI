@@ -3,7 +3,7 @@ import re
 import random
 import json
 import collections
-import parameters as params
+import util.parameters as params
 import pickle
 
 FIXED_PARAMETERS = params.load_parameters()
